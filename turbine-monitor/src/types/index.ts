@@ -26,62 +26,12 @@ export interface Alert {
   resolved: boolean
 }
 
-// Chart data for visualization
 export interface ChartData {
-  timestamps: string[]
-  power: number[]
-  windSpeed: number[]
-}
-
-// Individual chart data point
-export interface ChartDataPoint {
-  timestamp: string
+  timestamp: number
   value: number
+  label?: string
 }
 
-// Log entry structure
-export interface LogEntry {
-  timestamp: string
-  message: string
-  category: string
-}
-
-// KPI metrics
-export interface KPIMetrics {
-  availability: number
-  reliability: number
-}
-
-// CSV data structure
 export interface CSVData {
-  timestamp: string
-  power?: string | number
-  'wind speed'?: string | number
-  'wind_speed'?: string | number
-  windSpeed?: string | number
-  status?: string
-  category?: string
-  message?: string
-  downtime?: string | number
-  fault_downtime?: string | number
-  [key: string]: any
-}
-
-// Worker message types
-export interface WorkerMessage {
-  type: 'PROCESS_CSV' | 'CALCULATE_KPI' | 'GENERATE_CHART_DATA'
-  data: any
-}
-
-export interface WorkerResponse {
-  success: boolean
-  data?: any
-  error?: string
-}
-
-// Processed data from worker
-export interface ProcessedData {
-  chartData: ChartData
-  logs: LogEntry[]
-  kpiMetrics: KPIMetrics
+  [key: string]: string | number
 }
