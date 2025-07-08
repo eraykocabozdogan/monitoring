@@ -1,7 +1,3 @@
 export { TurbineCard } from './TurbineCard'
 export { TurbineChart } from './TurbineChart'
 export { CSVUploader } from './CSVUploader'
-export { KPIMetrics } from './KPIMetrics'
-export { AlertsPanel } from './AlertsPanel'
-export { ChartsPanel } from './ChartsPanel'
-export { TurbineDashboard } from './TurbineDashboard'

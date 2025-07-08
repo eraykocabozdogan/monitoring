@@ -26,12 +26,6 @@ export interface Alert {
   resolved: boolean
 }
 
-// Date range for filtering
-export interface DateRange {
-  start: string
-  end: string
-}
-
 // Chart data for visualization
 export interface ChartData {
   timestamps: string[]
