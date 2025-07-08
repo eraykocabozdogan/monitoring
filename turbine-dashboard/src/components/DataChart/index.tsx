@@ -1,92 +1,57 @@
+import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store/useAppStore';
 
-const DataChart = () => {
-  const allEvents = useAppStore((state) => state.allEvents);
+const DataChart: React.FC = () => {
+  const { allEvents } = useAppStore();
 
-  if (allEvents.length === 0) {
+  // 1. Veri henüz yüklenmediyse bir mesaj göster
+  if (!allEvents || allEvents.length === 0) {
     return (
-      <div style={{
-        textAlign: 'center',
-        padding: '40px',
-        color: '#666',
-        fontSize: '16px',
-        border: '2px dashed #ccc',
-        borderRadius: '8px',
-        margin: '20px 0'
-      }}>
+      <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
         Please upload a CSV file to see the chart.
       </div>
     );
   }
 
-  // Prepare data for the chart
-  const powerData = allEvents.map(event => [
-    event.timestamp.getTime(),
-    event.power
-  ]);
+  // 2. HATA DÜZELTME: Grafik oluşturmadan önce geçersiz veya tanımsız timestamp'i olan verileri filtrele
+  const validEvents = allEvents.filter(
+    (event) => event.timestamp instanceof Date && !isNaN(event.timestamp.getTime())
+  );
 
-  const expectedPowerData = allEvents.map(event => [
-    event.timestamp.getTime(),
-    event.power // Using power as placeholder for expected power
-  ]);
-
-  const windSpeedData = allEvents.map(event => [
-    event.timestamp.getTime(),
-    event.windSpeed
-  ]);
-
+  // 3. ECharts için grafik konfigürasyonunu (option) oluştur
   const option = {
-    title: {
-      text: 'Rüzgar Türbini Veri Analizi',
-      left: 'center',
-      textStyle: {
-        fontSize: 18,
-        fontWeight: 'bold'
-      }
-    },
     tooltip: {
       trigger: 'axis',
       axisPointer: {
-        type: 'cross'
-      },
-      formatter: (params: any) => {
-        const date = new Date(params[0].value[0]).toLocaleString('tr-TR');
-        let result = `<strong>${date}</strong><br/>`;
-        params.forEach((param: any) => {
-          result += `${param.seriesName}: ${param.value[1]}<br/>`;
-        });
-        return result;
+        type: 'cross',
+        label: {
+          backgroundColor: '#6a7985'
+        }
       }
     },
     legend: {
       data: ['Power (kW)', 'Expected Power (kW)', 'Wind Speed (m/s)'],
-      top: 35
+      textStyle: {
+        color: '#ccc'
+      }
     },
     grid: {
       left: '3%',
-      right: '10%',
-      bottom: '10%',
-      top: '15%',
+      right: '4%',
+      bottom: '3%',
       containLabel: true
     },
-    xAxis: {
-      type: 'time',
-      name: 'Zaman',
-      nameLocation: 'middle',
-      nameGap: 30,
-      axisLabel: {
-        formatter: (value: number) => {
-          return new Date(value).toLocaleDateString('tr-TR');
-        }
+    xAxis: [
+      {
+        type: 'time',
+        boundaryGap: false,
       }
-    },
+    ],
     yAxis: [
       {
         type: 'value',
-        name: 'Güç (kW)',
-        nameLocation: 'middle',
-        nameGap: 50,
+        name: 'Power (kW)',
         position: 'left',
         axisLabel: {
           formatter: '{value} kW'
@@ -94,78 +59,41 @@ const DataChart = () => {
       },
       {
         type: 'value',
-        name: 'Rüzgar Hızı (m/s)',
-        nameLocation: 'middle',
-        nameGap: 50,
+        name: 'Wind Speed (m/s)',
         position: 'right',
         axisLabel: {
           formatter: '{value} m/s'
         }
       }
     ],
-    dataZoom: [
-      {
-        type: 'inside',
-        xAxisIndex: 0,
-        filterMode: 'none'
-      },
-      {
-        type: 'slider',
-        xAxisIndex: 0,
-        filterMode: 'none',
-        bottom: 20
-      }
-    ],
     series: [
       {
         name: 'Power (kW)',
         type: 'line',
-        yAxisIndex: 0,
-        data: powerData,
-        lineStyle: {
-          color: '#1f77b4',
-          width: 2
-        },
-        symbol: 'none',
-        smooth: true
+        smooth: true,
+        showSymbol: false,
+        data: validEvents.map(event => [event.timestamp, event.power])
       },
       {
         name: 'Expected Power (kW)',
         type: 'line',
-        yAxisIndex: 0,
-        data: expectedPowerData,
-        lineStyle: {
-          color: '#ff7f0e',
-          width: 2,
-          type: 'dashed'
-        },
-        symbol: 'none',
-        smooth: true
+        smooth: true,
+        showSymbol: false,
+        // Placeholder: Şimdilik gerçek güç verisini kullanıyoruz
+        data: validEvents.map(event => [event.timestamp, event.power]) 
       },
       {
         name: 'Wind Speed (m/s)',
         type: 'line',
-        yAxisIndex: 1,
-        data: windSpeedData,
-        lineStyle: {
-          color: '#2ca02c',
-          width: 2
-        },
-        symbol: 'none',
-        smooth: true
+        yAxisIndex: 1, // Bu seriyi ikinci (sağdaki) y eksenine bağla
+        smooth: true,
+        showSymbol: false,
+        data: validEvents.map(event => [event.timestamp, event.windSpeed])
       }
     ]
   };
 
-  return (
-    <div style={{ margin: '20px 0' }}>
-      <ReactECharts
-        option={option}
-        style={{ height: '500px', width: '100%' }}
-        opts={{ renderer: 'canvas' }}
-      />
-    </div>
-  );
+  return <ReactECharts option={option} style={{ height: '500px', width: '100%' }} />;
 };
 
 export default DataChart;
