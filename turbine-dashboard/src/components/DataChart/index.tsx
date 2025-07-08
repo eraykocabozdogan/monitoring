@@ -5,7 +5,6 @@ import { useAppStore } from '../../store/useAppStore';
 const DataChart: React.FC = () => {
   const { allEvents } = useAppStore();
 
-  // 1. Veri henüz yüklenmediyse bir mesaj göster
   if (!allEvents || allEvents.length === 0) {
     return (
       <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
@@ -14,21 +13,23 @@ const DataChart: React.FC = () => {
     );
   }
 
-  // 2. HATA DÜZELTME: Grafik oluşturmadan önce geçersiz veya tanımsız timestamp'i olan verileri filtrele
+  // Hata düzeltmesi: Geçersiz timestamp'e sahip verileri filtrele
   const validEvents = allEvents.filter(
     (event) => event.timestamp instanceof Date && !isNaN(event.timestamp.getTime())
   );
 
-  // 3. ECharts için grafik konfigürasyonunu (option) oluştur
+  // Filtreleme sonrası veri kalmadıysa kullanıcıyı bilgilendir
+  if (validEvents.length === 0) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
+        No valid data with dates found in the CSV file to display.
+      </div>
+    );
+  }
+
   const option = {
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-        label: {
-          backgroundColor: '#6a7985'
-        }
-      }
     },
     legend: {
       data: ['Power (kW)', 'Expected Power (kW)', 'Wind Speed (m/s)'],
@@ -39,61 +40,54 @@ const DataChart: React.FC = () => {
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '3%',
+      bottom: '10%', // Alttaki slider için boşluk bırak
       containLabel: true
     },
-    xAxis: [
-      {
-        type: 'time',
-        boundaryGap: false,
-      }
-    ],
+    xAxis: {
+      type: 'time',
+      boundaryGap: false,
+    },
     yAxis: [
       {
         type: 'value',
         name: 'Power (kW)',
-        position: 'left',
-        axisLabel: {
-          formatter: '{value} kW'
-        }
       },
       {
         type: 'value',
         name: 'Wind Speed (m/s)',
         position: 'right',
-        axisLabel: {
-          formatter: '{value} m/s'
-        }
       }
     ],
     series: [
       {
         name: 'Power (kW)',
         type: 'line',
-        smooth: true,
         showSymbol: false,
         data: validEvents.map(event => [event.timestamp, event.power])
       },
       {
         name: 'Expected Power (kW)',
         type: 'line',
-        smooth: true,
         showSymbol: false,
-        // Placeholder: Şimdilik gerçek güç verisini kullanıyoruz
-        data: validEvents.map(event => [event.timestamp, event.power]) 
+        data: validEvents.map(event => [event.timestamp, event.power])
       },
       {
         name: 'Wind Speed (m/s)',
         type: 'line',
-        yAxisIndex: 1, // Bu seriyi ikinci (sağdaki) y eksenine bağla
-        smooth: true,
+        yAxisIndex: 1, // Bu seriyi ikinci Y eksenine bağla
         showSymbol: false,
         data: validEvents.map(event => [event.timestamp, event.windSpeed])
       }
     ]
   };
 
-  return <ReactECharts option={option} style={{ height: '500px', width: '100%' }} />;
+  return (
+    <ReactECharts
+      option={option}
+      // GRAFİĞİN GÖRÜNMESİNİ SAĞLAYAN KISIM
+      style={{ height: '500px', width: '100%' }}
+    />
+  );
 };
 
 export default DataChart;

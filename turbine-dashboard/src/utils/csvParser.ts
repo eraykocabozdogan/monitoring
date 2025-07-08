@@ -1,37 +1,42 @@
 import Papa from 'papaparse';
+// Hatanın olduğu import'u 'import type' olarak düzeltiyoruz
 import type { TurbineEvent } from '../types';
 
 export const parseCsvFile = (file: File): Promise<TurbineEvent[]> => {
   return new Promise((resolve, reject) => {
-    const results: TurbineEvent[] = [];
-
-    Papa.parse<TurbineEvent>(file, {
+    Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      transform: (value: string, field: string) => {
-        // Convert specific fields to appropriate types
-        switch (field) {
-          case 'power':
-          case 'windSpeed':
-            return Number(value);
-          case 'timestamp':
-            return new Date(value);
-          default:
-            return value;
+      stream: true,
+      transform: (value: string, header: string) => {
+        if (header === 'Power (kW)' || header === 'Wind Speed (m/s)') {
+          return parseFloat(value) || 0;
         }
-      },
-      step: (row: Papa.ParseStepResult<TurbineEvent>) => {
-        // Add each parsed row to results
-        if (row.data) {
-          results.push(row.data);
+        if (header === 'Timestamp') {
+          const isoString = value.replace(' ', 'T') + 'Z';
+          const date = new Date(isoString);
+          return isNaN(date.getTime()) ? null : date;
         }
+        return value;
       },
-      complete: () => {
-        resolve(results);
+      complete: (results) => {
+        const cleanData = (results.data as any[]).filter(row => row.Timestamp);
+
+        const finalData: TurbineEvent[] = cleanData.map(row => ({
+            timestamp: row.Timestamp,
+            status: row.Status,
+            description: row.Description,
+            category: row.Category,
+            eventType: row.EventType,
+            power: row['Power (kW)'],
+            windSpeed: row['Wind Speed (m/s)']
+        }));
+
+        resolve(finalData);
       },
       error: (error: Error) => {
         reject(error);
-      }
+      },
     });
   });
 };

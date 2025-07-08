@@ -1,5 +1,5 @@
 export interface TurbineEvent {
-  timestamp: Date;
+  timestamp: Date | null; // Hatalı tarih durumları için null olabilir
   status: string;
   description: string;
   category: string;
