@@ -1,4 +1,4 @@
-import { CSVUploader } from './components'
+import { TurbineDashboard } from './components'
 
 function App() {
   return (
@@ -67,8 +67,8 @@ function App() {
             </div>
           </div>
 
-          {/* CSV Data Processing */}
-          <CSVUploader />
+          {/* CSV Data Processing Dashboard */}
+          <TurbineDashboard />
         </main>
       </div>
     </div>
