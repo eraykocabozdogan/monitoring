@@ -1,14 +1,18 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store/useAppStore';
+import styles from './DataChart.module.css';
 
 const DataChart: React.FC = () => {
   const { allEvents } = useAppStore();
 
   if (!allEvents || allEvents.length === 0) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
-        Please upload a CSV file to see the chart.
+      <div className={styles.container}>
+        <h2 className={styles.title}>Time Series Data</h2>
+        <div className={styles.emptyState}>
+          Please upload a CSV file to see the chart.
+        </div>
       </div>
     );
   }
@@ -21,8 +25,11 @@ const DataChart: React.FC = () => {
   // Filtreleme sonrası veri kalmadıysa kullanıcıyı bilgilendir
   if (validEvents.length === 0) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
-        No valid data with dates found in the CSV file to display.
+      <div className={styles.container}>
+        <h2 className={styles.title}>Time Series Data</h2>
+        <div className={styles.emptyState}>
+          No valid data with dates found in the CSV file to display.
+        </div>
       </div>
     );
   }
@@ -82,11 +89,16 @@ const DataChart: React.FC = () => {
   };
 
   return (
-    <ReactECharts
-      option={option}
-      // GRAFİĞİN GÖRÜNMESİNİ SAĞLAYAN KISIM
-      style={{ height: '500px', width: '100%' }}
-    />
+    <div className={styles.container}>
+      <h2 className={styles.title}>Time Series Data</h2>
+      <div className={styles.chartWrapper}>
+        <ReactECharts
+          option={option}
+          // GRAFİĞİN GÖRÜNMESİNİ SAĞLAYAN KISIM
+          style={{ height: '100%', width: '100%' }}
+        />
+      </div>
+    </div>
   );
 };
 
