@@ -38,12 +38,32 @@ interface ProcessedData {
   kpiMetrics: KPIMetrics
 }
 
+interface DateRange {
+  start: string
+  end: string
+}
+
+interface RecalculatePayload {
+  dateRange: DateRange
+  allLogs: LogEntry[]
+}
+
 // Event listener for messages from main thread
 self.addEventListener('message', (event) => {
-  const { file } = event.data
+  const { type, file, payload } = event.data
   
+  if (type === 'PROCESS_CSV') {
+    handleCSVProcessing(file)
+  } else if (type === 'RECALCULATE') {
+    handleKPIRecalculation(payload)
+  } else {
+    self.postMessage({ success: false, error: 'Unknown message type' })
+  }
+})
+
+function handleCSVProcessing(file: File) {
   if (!file) {
-    self.postMessage({ error: 'No file provided' })
+    self.postMessage({ success: false, error: 'No file provided' })
     return
   }
   
@@ -54,18 +74,79 @@ self.addEventListener('message', (event) => {
     complete: (results) => {
       try {
         const processedData = processCSVData(results.data as CSVRow[])
-        self.postMessage({ success: true, data: processedData })
+        self.postMessage({ 
+          success: true, 
+          type: 'PROCESSING_COMPLETE',
+          data: processedData 
+        })
       } catch (error) {
         self.postMessage({ 
+          success: false,
           error: error instanceof Error ? error.message : 'Processing failed' 
         })
       }
     },
     error: (error) => {
-      self.postMessage({ error: `CSV parsing failed: ${error.message}` })
+      self.postMessage({ success: false, error: `CSV parsing failed: ${error.message}` })
     }
   })
-})
+}
+
+function handleKPIRecalculation(payload: RecalculatePayload) {
+  try {
+    const { dateRange, allLogs } = payload
+    
+    // Filter logs within the date range
+    const filteredLogs = allLogs.filter(log => 
+      log.timestamp >= dateRange.start && log.timestamp <= dateRange.end
+    )
+    
+    // Calculate KPIs based on filtered logs
+    const kpiMetrics = calculateKPIsFromLogs(filteredLogs, dateRange)
+    
+    self.postMessage({
+      success: true,
+      type: 'RECALCULATION_COMPLETE',
+      data: kpiMetrics
+    })
+  } catch (error) {
+    self.postMessage({
+      success: false,
+      error: error instanceof Error ? error.message : 'Recalculation failed'
+    })
+  }
+}
+
+function calculateKPIsFromLogs(logs: LogEntry[], dateRange: DateRange): KPIMetrics {
+  // Calculate time span in hours
+  const startTime = new Date(dateRange.start).getTime()
+  const endTime = new Date(dateRange.end).getTime()
+  const totalHours = (endTime - startTime) / (1000 * 60 * 60)
+  
+  if (totalHours <= 0) {
+    return { availability: 100, reliability: 100 }
+  }
+  
+  // Count fault and warning events
+  const faultLogs = logs.filter(log => log.category.toLowerCase() === 'fault')
+  const warningLogs = logs.filter(log => log.category.toLowerCase() === 'warning')
+  
+  // Simple calculation based on log frequency
+  // In a real implementation, you'd use actual downtime data
+  const faultHours = faultLogs.length * 0.5 // Assume each fault causes 0.5 hour downtime
+  const warningHours = warningLogs.length * 0.1 // Assume each warning causes 0.1 hour impact
+  
+  const totalDowntime = faultHours + warningHours
+  const faultDowntime = faultHours
+  
+  const availability = Math.max(0, Math.min(100, ((totalHours - totalDowntime) / totalHours) * 100))
+  const reliability = Math.max(0, Math.min(100, ((totalHours - faultDowntime) / totalHours) * 100))
+  
+  return {
+    availability: Number(availability.toFixed(1)),
+    reliability: Number(reliability.toFixed(1))
+  }
+}
 
 function processCSVData(rows: CSVRow[]): ProcessedData {
   const chartData: ChartData = {

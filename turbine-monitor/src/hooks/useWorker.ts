@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react'
-import type { ProcessedData, WorkerResponse } from '../types'
+import type { ProcessedData, WorkerResponse, KPIMetrics, DateRange, LogEntry } from '../types'
 
 export const useWorker = () => {
   const workerRef = useRef<Worker | null>(null)
@@ -29,7 +29,34 @@ export const useWorker = () => {
         }
 
         worker.addEventListener('message', handleMessage)
-        worker.postMessage({ file })
+        worker.postMessage({ type: 'PROCESS_CSV', file })
+      })
+    },
+    [initWorker]
+  )
+
+  const recalculateKPIs = useCallback(
+    (dateRange: DateRange, logs: LogEntry[]): Promise<KPIMetrics> => {
+      return new Promise((resolve, reject) => {
+        const worker = initWorker()
+        
+        const handleMessage = (event: MessageEvent<WorkerResponse>) => {
+          if (event.data.success && event.data.type === 'RECALCULATION_COMPLETE') {
+            resolve(event.data.data)
+          } else if (event.data.error) {
+            reject(new Error(event.data.error))
+          }
+          worker.removeEventListener('message', handleMessage)
+        }
+
+        worker.addEventListener('message', handleMessage)
+        worker.postMessage({ 
+          type: 'RECALCULATE', 
+          payload: { 
+            dateRange, 
+            allLogs: logs 
+          } 
+        })
       })
     },
     [initWorker]
@@ -44,6 +71,7 @@ export const useWorker = () => {
 
   return {
     processCSVFile,
+    recalculateKPIs,
     terminateWorker
   }
 }

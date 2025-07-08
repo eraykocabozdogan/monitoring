@@ -75,12 +75,17 @@ export interface CSVData {
 
 // Worker message types
 export interface WorkerMessage {
-  type: 'PROCESS_CSV' | 'CALCULATE_KPI' | 'GENERATE_CHART_DATA'
-  data: any
+  type: 'PROCESS_CSV' | 'RECALCULATE'
+  file?: File
+  payload?: {
+    dateRange: DateRange
+    allLogs: LogEntry[]
+  }
 }
 
 export interface WorkerResponse {
   success: boolean
+  type?: 'PROCESSING_COMPLETE' | 'RECALCULATION_COMPLETE'
   data?: any
   error?: string
 }
