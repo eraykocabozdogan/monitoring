@@ -58,3 +58,28 @@ export const debounce = <T extends (...args: any[]) => void>(
     timeoutId = setTimeout(() => func(...args), delay)
   }
 }
+
+// Additional utility functions for data validation
+export const validateCSVData = (data: CSVData[]): boolean => {
+  if (!Array.isArray(data) || data.length === 0) return false
+  
+  // Check if data has required fields
+  const requiredFields = ['timestamp']
+  return data.every(row => 
+    requiredFields.every(field => row[field] !== undefined && row[field] !== '')
+  )
+}
+
+export const formatKPIValue = (value: number): string => {
+  return `${value.toFixed(1)}%`
+}
+
+export const calculateTimeRange = (timestamps: string[]): { start: string; end: string } => {
+  if (timestamps.length === 0) return { start: '', end: '' }
+  
+  const sortedTimestamps = [...timestamps].sort()
+  return {
+    start: sortedTimestamps[0],
+    end: sortedTimestamps[sortedTimestamps.length - 1]
+  }
+}

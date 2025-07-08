@@ -1,8 +1,8 @@
 import ReactECharts from 'echarts-for-react'
-import type { ChartData } from '../types'
+import type { ChartDataPoint } from '../types'
 
 interface TurbineChartProps {
-  data: ChartData[]
+  data: ChartDataPoint[]
   title: string
   color?: string
 }
