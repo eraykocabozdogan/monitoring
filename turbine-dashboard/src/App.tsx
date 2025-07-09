@@ -8,6 +8,7 @@ import CsvUploader from './components/CsvUploader';
 import DataChart from './components/DataChart';
 import DashboardLayout from './components/DashboardLayout';
 import styles from './components/DashboardLayout/DashboardLayout.module.css';
+import sidebarStyles from './components/Sidebar/Sidebar.module.css';
 import CriticalLogs from './components/CriticalLogs';
 import Sidebar from './components/Sidebar';
 import KpiCard from './components/KpiCard';
@@ -38,9 +39,13 @@ function App() {
           <CsvUploader />
           <DateRangePicker />
           {/* Artık gerçek, dinamik metrikleri gösteriyoruz */}
-          <KpiCard title="Availability" value={metrics.availability} unit="%" />
-          <KpiCard title="MTBF" value={metrics.mtbf} unit="hours" />
-          <KpiCard title="MTTR" value={metrics.mttr} unit="hours" />
+          <div className={sidebarStyles.section}>
+            <div className={sidebarStyles.kpiGrid}>
+              <KpiCard title="Availability" value={metrics.availability} unit="%" />
+              <KpiCard title="MTBF" value={metrics.mtbf} unit="hours" />
+              <KpiCard title="MTTR" value={metrics.mttr} unit="hours" />
+            </div>
+          </div>
         </Sidebar>
       </div>
     </DashboardLayout>
