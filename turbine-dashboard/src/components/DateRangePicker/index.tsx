@@ -3,7 +3,7 @@ import React from 'react';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStore } from '../../store/useAppStore.js';
 import { Box, Typography } from '@mui/material';
 
 const DateRangePicker: React.FC = () => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStore } from '../../store/useAppStore.js';
 import { format } from 'date-fns'; // Tarih formatlamak için import ediyoruz
 
 const DataChart: React.FC = () => {

@@ -1,13 +1,12 @@
 import Papa from 'papaparse';
 // Hatanın olduğu import'u 'import type' olarak düzeltiyoruz
-import type { TurbineEvent } from '../types';
+import type { TurbineEvent } from '../types/index.js';
 
 export const parseCsvFile = (file: File): Promise<TurbineEvent[]> => {
   return new Promise((resolve, reject) => {
-    Papa.parse(file, {
+    Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
-      stream: true,
       transform: (value: string, header: string) => {
         if (header === 'Power (kW)' || header === 'Wind Speed (m/s)') {
           return parseFloat(value) || 0;

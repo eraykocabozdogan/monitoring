@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TurbineEvent, Metrics } from '../types';
+import type { TurbineEvent, Metrics } from '../types/index.js';
 
 interface AppState {
   allEvents: TurbineEvent[];
@@ -32,10 +32,10 @@ export const useAppStore = create<AppState>((set) => ({
     if (events.length > 0) {
       // Find the earliest and latest timestamps
       events.forEach((event) => {
-        if (!earliest || event.timestamp < earliest) {
+        if (event.timestamp && (!earliest || event.timestamp < earliest)) {
           earliest = event.timestamp;
         }
-        if (!latest || event.timestamp > latest) {
+        if (event.timestamp && (!latest || event.timestamp > latest)) {
           latest = event.timestamp;
         }
       });

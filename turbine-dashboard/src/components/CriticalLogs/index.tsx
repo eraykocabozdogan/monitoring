@@ -1,13 +1,20 @@
 // src/components/CriticalLogs/index.tsx
 import React from 'react';
+import { format } from 'date-fns';
+import type { TurbineEvent } from '../../types/index.js';
 import styles from './CriticalLogs.module.css';
 
-const CriticalLogs: React.FC = () => {
+interface CriticalLogsProps {
+  logs: TurbineEvent[];
+}
+
+const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
+  // Gelen logların bir dizi olduğundan emin ol
+  const validLogs = Array.isArray(logs) ? logs : [];
+
   return (
     <div className={styles.logsCard}>
       <h2 className={styles.title}>Critical Logs</h2>
-      
-      {/* Tabloyu, esneyip büyüyebilen bir konteyner içine alıyoruz */}
       <div className={styles.tableContainer}>
         <table className={styles.table}>
           <thead>
@@ -18,22 +25,21 @@ const CriticalLogs: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {/* Örnek veriler */}
-            <tr>
-              <td>Jan 3, 2024</td>
-              <td>08:00</td>
-              <td>Yaw system fault</td>
-            </tr>
-            <tr>
-              <td>Jan 3, 2024</td>
-              <td>09:30</td>
-              <td>Power limitation mode activated</td>
-            </tr>
-            <tr>
-              <td>Jan 3, 2024</td>
-              <td>11:15</td>
-              <td>Grid loss detected</td>
-            </tr>
+            {validLogs.length > 0 ? (
+              validLogs.map((log, index) => (
+                <tr key={`${log.timestamp?.getTime()}-${index}`}>
+                  <td>{log.timestamp ? format(log.timestamp, 'MMM d, yyyy') : '--'}</td>
+                  <td>{log.timestamp ? format(log.timestamp, 'HH:mm:ss') : '--'}</td>
+                  <td>{log.description}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={3} style={{ textAlign: 'center', color: '#888' }}>
+                  No logs to display for the selected range.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
