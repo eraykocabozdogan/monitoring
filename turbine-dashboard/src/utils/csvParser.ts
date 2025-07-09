@@ -26,7 +26,7 @@ export const parseCsvFile = (file: File): Promise<TurbineEvent[]> => {
             status: row.Status,
             description: row.Description,
             category: row.Category,
-            eventType: row.EventType,
+            eventType: row['Event Type'], // Burası düzeltildi!
             power: row['Power (kW)'],
             windSpeed: row['Wind Speed (m/s)']
         }));

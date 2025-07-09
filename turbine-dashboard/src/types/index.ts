@@ -12,4 +12,5 @@ export type Metrics = {
   availability: number;
   mtbf: number;
   mttr: number;
+  reliability_R100h: number; // Yeni eklenecek metrik
 };

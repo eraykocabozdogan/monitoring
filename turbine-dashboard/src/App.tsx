@@ -1,33 +1,33 @@
 // src/App.tsx
-import { useEffect } from 'react';
-import { useAppStore } from './store/useAppStore';
-import { useFilteredData } from './hooks/useFilteredData.js';
-import { calculateMetrics } from './utils/calculations.js';
+import { useEffect } from 'react'; //
+import { useAppStore } from './store/useAppStore'; //
+import { useFilteredData } from './hooks/useFilteredData.js'; //
+import { calculateMetrics } from './utils/calculations.js'; //
 
-import CsvUploader from './components/CsvUploader';
-import DataChart from './components/DataChart';
-import DashboardLayout from './components/DashboardLayout';
-import styles from './components/DashboardLayout/DashboardLayout.module.css';
-import sidebarStyles from './components/Sidebar/Sidebar.module.css';
-import CriticalLogs from './components/CriticalLogs';
-import Sidebar from './components/Sidebar';
-import KpiCard from './components/KpiCard';
-import DateRangePicker from './components/DateRangePicker';
+import CsvUploader from './components/CsvUploader'; //
+import DataChart from './components/DataChart'; //
+import DashboardLayout from './components/DashboardLayout'; //
+import styles from './components/DashboardLayout/DashboardLayout.module.css'; //
+import sidebarStyles from './components/Sidebar/Sidebar.module.css'; //
+import CriticalLogs from './components/CriticalLogs'; //
+import Sidebar from './components/Sidebar'; //
+import KpiCard from './components/KpiCard'; //
+import DateRangePicker from './components/DateRangePicker'; //
 
 function App() {
-  const { setMetrics, metrics } = useAppStore();
-  const filteredData = useFilteredData();
+  const { setMetrics, metrics } = useAppStore(); //
+  const filteredData = useFilteredData(); //
 
   // Filtrelenmiş veri her değiştiğinde bu blok çalışır
-  useEffect(() => {
-    if (filteredData.length > 0) {
-      const newMetrics = calculateMetrics(filteredData);
-      setMetrics(newMetrics);
-    } else {
+  useEffect(() => { //
+    if (filteredData.length > 0) { //
+      const newMetrics = calculateMetrics(filteredData); //
+      setMetrics(newMetrics); //
+    } else { //
       // Eğer filtrelenmiş veri boşsa, metrikleri sıfırla
-      setMetrics({ availability: 0, mtbf: 0, mttr: 0 });
+      setMetrics({ availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 }); // reliability_R100h eklendi
     }
-  }, [filteredData, setMetrics]);
+  }, [filteredData, setMetrics]); //
 
   return (
     <DashboardLayout>
@@ -44,6 +44,7 @@ function App() {
               <KpiCard title="Availability" value={metrics.availability} unit="%" />
               <KpiCard title="MTBF" value={metrics.mtbf} unit="hours" />
               <KpiCard title="MTTR" value={metrics.mttr} unit="hours" />
+              <KpiCard title="Reliability (R(100h))" value={metrics.reliability_R100h} unit="" /> {/* Yeni KpiCard */}
             </div>
           </div>
         </Sidebar>
@@ -52,4 +53,4 @@ function App() {
   );
 }
 
-export default App;
+export default App; //
