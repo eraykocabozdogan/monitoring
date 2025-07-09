@@ -8,9 +8,11 @@ interface AppState {
     end: Date | null;
   };
   metrics: Metrics;
+  legendSelected: Record<string, boolean>;
   setEvents: (events: TurbineEvent[]) => void;
   setDateRange: (range: { start: Date; end: Date }) => void;
   setMetrics: (newMetrics: Metrics) => void;
+  setLegendSelected: (selected: Record<string, boolean>) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -23,6 +25,11 @@ export const useAppStore = create<AppState>((set) => ({
     availability: 0,
     mtbf: 0,
     mttr: 0,
+  },
+  legendSelected: {
+    'Power (kW)': true,
+    'Expected Power (kW)': true,
+    'Wind Speed (m/s)': true,
   },
   
   setEvents: (events: TurbineEvent[]) => {
@@ -59,6 +66,12 @@ export const useAppStore = create<AppState>((set) => ({
   setMetrics: (newMetrics: Metrics) => {
     set({
       metrics: newMetrics,
+    });
+  },
+
+  setLegendSelected: (selected: Record<string, boolean>) => {
+    set({
+      legendSelected: selected,
     });
   },
 }));

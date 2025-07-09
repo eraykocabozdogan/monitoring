@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import type { TurbineEvent } from '../../types/index.js';
 
 const DataChart: React.FC = () => {
-  const { allEvents, dateRange, setDateRange } = useAppStore();
+  const { allEvents, dateRange, setDateRange, legendSelected, setLegendSelected } = useAppStore();
   const chartRef = useRef<any>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -37,9 +37,14 @@ const DataChart: React.FC = () => {
     }, 400);
   }, [dateRange, setDateRange]);
 
+  const handleLegendSelectChanged = useCallback((e: any) => {
+    setLegendSelected(e.selected);
+  }, [setLegendSelected]);
+
   const onEvents = useMemo(() => ({
     datazoom: handleDataZoom,
-  }), [handleDataZoom]);
+    legendselectchanged: handleLegendSelectChanged,
+  }), [handleDataZoom, handleLegendSelectChanged]);
 
   const option = useMemo(() => ({
     tooltip: {
@@ -63,9 +68,18 @@ const DataChart: React.FC = () => {
         `;
       }
     },
-    legend: { data: ['Power (kW)', 'Expected Power (kW)', 'Wind Speed (m/s)'], textStyle: { color: '#333' } },
+    legend: { 
+      data: ['Power (kW)', 'Expected Power (kW)', 'Wind Speed (m/s)'], 
+      textStyle: { color: '#333' },
+      selected: legendSelected
+    },
     grid: { left: '5%', right: '5%', bottom: '15%', containLabel: true },
-    xAxis: { type: 'time' },
+    xAxis: { 
+      type: 'time',
+      axisLabel: {
+        formatter: (value: number) => format(new Date(value), 'MMM yyyy')
+      }
+    },
     yAxis: [
       { type: 'value', name: 'Power (kW)' },
       { type: 'value', name: 'Wind Speed (m/s)', position: 'right' }
@@ -80,7 +94,7 @@ const DataChart: React.FC = () => {
       { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, data: validEvents.map(event => [event.timestamp, event.windSpeed]) }
     ],
     animation: false, // Performansı artırmak için animasyonları kapatabiliriz
-  }), [validEvents, dateRange]);
+  }), [validEvents, dateRange, legendSelected]);
 
   if (validEvents.length === 0) {
     return <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Please upload a CSV file to see the chart.</div>;

@@ -9,7 +9,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Rüzgar Türbini İzleme Paneli</h1>
+        <h1 className={styles.title}>Wind Turbine Monitoring</h1>
       </div>
       {children}
     </div>
