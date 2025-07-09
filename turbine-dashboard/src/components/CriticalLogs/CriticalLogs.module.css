@@ -26,6 +26,10 @@
   flex-grow: 1; 
   /* Eğer loglar çok uzarsa, sadece tabloya kaydırma çubuğu ekler */
   overflow-y: auto; 
+  min-height: 200px;
+  max-height: 620px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
 }
 
 .table {
@@ -37,4 +41,16 @@
   padding: 12px 8px;
   text-align: left;
   border-bottom: 1px solid #f0f0f0;
+}
+
+.table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table tbody tr:hover {
+  background-color: #f8f9fa;
 }
