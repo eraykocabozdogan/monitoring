@@ -1,10 +1,15 @@
-import React from 'react';
+// eraykocabozdogan/monitoring/monitoring-38bccf512860c62033d3b011ac5cebf8720363f1/turbine-dashboard/src/components/DataChart/index.tsx
+
+import React, { useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store/useAppStore.js';
-import { format } from 'date-fns'; // Tarih formatlamak için import ediyoruz
+import { format } from 'date-fns';
 
 const DataChart: React.FC = () => {
   const { allEvents, dateRange, setDateRange } = useAppStore();
+  const chartRef = useRef<any>(null);
+  // Debounce için bir zamanlayıcı referansı oluşturuyoruz
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   if (!allEvents || allEvents.length === 0) {
     return <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Please upload a CSV file to see the chart.</div>;
@@ -17,29 +22,41 @@ const DataChart: React.FC = () => {
   }
 
   const handleChartEvents = {
-    datazoom: (params: any) => {
-      const startValue = params.batch[0].startValue;
-      const endValue = params.batch[0].endValue;
-      if (startValue != null && endValue != null) {
-        setDateRange({ start: new Date(startValue), end: new Date(endValue) });
+    datazoom: () => {
+      // Eğer önceki bir zamanlayıcı varsa, onu temizle
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
       }
+
+      // Yeni bir zamanlayıcı ayarla. State güncellemesi sadece 400ms'lik beklemeden sonra gerçekleşecek.
+      debounceTimer.current = setTimeout(() => {
+        if (chartRef.current) {
+          const echartsInstance = chartRef.current.getEchartsInstance();
+          const newOption = echartsInstance.getOption();
+          
+          if (newOption.dataZoom && newOption.dataZoom.length > 0) {
+            const startValue = newOption.dataZoom[0].startValue;
+            const endValue = newOption.dataZoom[0].endValue;
+
+            if (startValue != null && endValue != null) {
+              // Mevcut aralıkla aynı değilse durumu güncelle
+              if (dateRange.start?.getTime() !== startValue || dateRange.end?.getTime() !== endValue) {
+                setDateRange({ start: new Date(startValue), end: new Date(endValue) });
+              }
+            }
+          }
+        }
+      }, 400); // 400 milisaniye bekleme süresi
     },
   };
 
   const option = {
     tooltip: {
       trigger: 'axis',
-      // --- TOOLTIP ÖZELLEŞTİRME BAŞLANGICI ---
       formatter: (params: any) => {
-        // params bir dizi, genellikle hepsi aynı noktayı gösterir. İlkini alıyoruz.
         const dataPoint = params[0];
-        // Serinin veri noktasından, orijinal 'TurbineEvent' objemizi buluyoruz.
-        // Bunun için 'dataIndex'i kullanarak ana veri dizimizden doğru olayı çekiyoruz.
         const eventData = validEvents[dataPoint.dataIndex];
-
         if (!eventData) return 'No data';
-
-        // HTML olarak tooltip içeriğini oluşturuyoruz.
         return `
           <div style="font-family: sans-serif; font-size: 14px; color: #333;">
             <strong>Timestamp:</strong> ${format(eventData.timestamp!, 'yyyy-MM-dd HH:mm:ss')}<br/>
@@ -54,7 +71,6 @@ const DataChart: React.FC = () => {
           </div>
         `;
       }
-      // --- TOOLTIP ÖZELLEŞTİRME SONU ---
     },
     legend: { data: ['Power (kW)', 'Expected Power (kW)', 'Wind Speed (m/s)'], textStyle: { color: '#333' } },
     grid: { left: '5%', right: '5%', bottom: '15%', containLabel: true },
@@ -77,6 +93,7 @@ const DataChart: React.FC = () => {
   return (
     <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
       <ReactECharts
+        ref={chartRef}
         option={option}
         style={{ height: '500px', width: '100%' }}
         onEvents={handleChartEvents}
