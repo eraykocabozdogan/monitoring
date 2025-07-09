@@ -1,5 +1,5 @@
 // src/components/DateRangePicker/index.tsx
-import React from 'react';
+import React, { memo } from 'react';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -48,4 +48,4 @@ const DateRangePicker: React.FC = () => {
   );
 };
 
-export default DateRangePicker;
+export default memo(DateRangePicker);

@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore.js';
 import { parseCsvFile } from '../../utils/csvParser.js';
 import styles from './CsvUploader.module.css';
@@ -69,4 +69,4 @@ const CsvUploader = () => {
   );
 };
 
-export default CsvUploader;
+export default React.memo(CsvUploader);

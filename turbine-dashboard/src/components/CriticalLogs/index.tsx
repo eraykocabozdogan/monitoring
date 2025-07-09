@@ -1,5 +1,5 @@
 // src/components/CriticalLogs/index.tsx
-import React from 'react';
+import React, { memo } from 'react';
 import { format } from 'date-fns';
 import type { TurbineEvent } from '../../types/index.js';
 import styles from './CriticalLogs.module.css';
@@ -47,4 +47,4 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
   );
 };
 
-export default CriticalLogs;
+export default memo(CriticalLogs);

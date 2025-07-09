@@ -25,4 +25,4 @@ const KpiCard: React.FC<KpiCardProps> = ({ title, value, unit }) => {
   );
 };
 
-export default KpiCard;
+export default React.memo(KpiCard);

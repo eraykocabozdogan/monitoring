@@ -1,61 +1,52 @@
 // eraykocabozdogan/monitoring/monitoring-38bccf512860c62033d3b011ac5cebf8720363f1/turbine-dashboard/src/components/DataChart/index.tsx
 
-import React, { useRef } from 'react';
+import React, { useRef, useMemo, useCallback, memo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store/useAppStore.js';
 import { format } from 'date-fns';
+import type { TurbineEvent } from '../../types/index.js';
 
 const DataChart: React.FC = () => {
   const { allEvents, dateRange, setDateRange } = useAppStore();
   const chartRef = useRef<any>(null);
-  // Debounce için bir zamanlayıcı referansı oluşturuyoruz
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  if (!allEvents || allEvents.length === 0) {
-    return <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Please upload a CSV file to see the chart.</div>;
-  }
-  
-  const validEvents = allEvents.filter(event => event.timestamp instanceof Date && !isNaN(event.timestamp.getTime()));
-  
-  if (validEvents.length === 0) {
-    return <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>No valid data with dates found in the CSV file to display.</div>;
-  }
+  const validEvents = useMemo(() => {
+    if (!allEvents) return [];
+    return allEvents.filter(event => event.timestamp instanceof Date && !isNaN(event.timestamp.getTime()));
+  }, [allEvents]);
 
-  const handleChartEvents = {
-    datazoom: () => {
-      // Eğer önceki bir zamanlayıcı varsa, onu temizle
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-
-      // Yeni bir zamanlayıcı ayarla. State güncellemesi sadece 400ms'lik beklemeden sonra gerçekleşecek.
-      debounceTimer.current = setTimeout(() => {
-        if (chartRef.current) {
-          const echartsInstance = chartRef.current.getEchartsInstance();
-          const newOption = echartsInstance.getOption();
-          
-          if (newOption.dataZoom && newOption.dataZoom.length > 0) {
-            const startValue = newOption.dataZoom[0].startValue;
-            const endValue = newOption.dataZoom[0].endValue;
-
-            if (startValue != null && endValue != null) {
-              // Mevcut aralıkla aynı değilse durumu güncelle
-              if (dateRange.start?.getTime() !== startValue || dateRange.end?.getTime() !== endValue) {
-                setDateRange({ start: new Date(startValue), end: new Date(endValue) });
-              }
+  const handleDataZoom = useCallback(() => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    debounceTimer.current = setTimeout(() => {
+      if (chartRef.current) {
+        const echartsInstance = chartRef.current.getEchartsInstance();
+        const newOption = echartsInstance.getOption();
+        if (newOption.dataZoom && newOption.dataZoom.length > 0) {
+          const startValue = newOption.dataZoom[0].startValue;
+          const endValue = newOption.dataZoom[0].endValue;
+          if (startValue != null && endValue != null) {
+            if (dateRange.start?.getTime() !== startValue || dateRange.end?.getTime() !== endValue) {
+              setDateRange({ start: new Date(startValue), end: new Date(endValue) });
             }
           }
         }
-      }, 400); // 400 milisaniye bekleme süresi
-    },
-  };
+      }
+    }, 400);
+  }, [dateRange, setDateRange]);
 
-  const option = {
+  const onEvents = useMemo(() => ({
+    datazoom: handleDataZoom,
+  }), [handleDataZoom]);
+
+  const option = useMemo(() => ({
     tooltip: {
       trigger: 'axis',
       formatter: (params: any) => {
         const dataPoint = params[0];
-        const eventData = validEvents[dataPoint.dataIndex];
+        const eventData = validEvents[dataPoint.dataIndex] as TurbineEvent;
         if (!eventData) return 'No data';
         return `
           <div style="font-family: sans-serif; font-size: 14px; color: #333;">
@@ -87,8 +78,13 @@ const DataChart: React.FC = () => {
       { name: 'Power (kW)', type: 'line', showSymbol: false, data: validEvents.map(event => [event.timestamp, event.power]) },
       { name: 'Expected Power (kW)', type: 'line', showSymbol: false, data: validEvents.map(event => [event.timestamp, event.power]) },
       { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, data: validEvents.map(event => [event.timestamp, event.windSpeed]) }
-    ]
-  };
+    ],
+    animation: false, // Performansı artırmak için animasyonları kapatabiliriz
+  }), [validEvents, dateRange]);
+
+  if (validEvents.length === 0) {
+    return <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Please upload a CSV file to see the chart.</div>;
+  }
 
   return (
     <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -96,10 +92,12 @@ const DataChart: React.FC = () => {
         ref={chartRef}
         option={option}
         style={{ height: '500px', width: '100%' }}
-        onEvents={handleChartEvents}
+        onEvents={onEvents}
+        notMerge={true}
+        lazyUpdate={true}
       />
     </div>
   );
 };
 
-export default DataChart;
+export default memo(DataChart);
