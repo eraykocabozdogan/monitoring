@@ -9,9 +9,12 @@ interface CriticalLogsProps {
 }
 
 const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
+  // 1. "Information" ve "Warning" filtrelerini başlangıç durumu olarak ekle
   const [selectedFilters, setSelectedFilters] = useState<Record<string, boolean>>({
     'fault': true,
     'safety critical fault': true,
+    'information': true, // Yeni filtre
+    'warning': true,     // Yeni filtre
   });
 
   const handleFilterChange = (eventType: string) => {
@@ -21,29 +24,35 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
     }));
   };
 
-  // Gelen logların bir dizi olduğundan emin ol
   const validLogs = Array.isArray(logs) ? logs : [];
 
-  // Önce kritik logları filtrele
-  const criticalEvents = useMemo(() => validLogs.filter(log =>
-    log.eventType && (log.eventType.toLowerCase().trim() === 'safety critical fault' || log.eventType.toLowerCase().trim() === 'fault')
-  ), [validLogs]);
+  // 2. Filtrelenecek olay türlerinin listesini genişlet
+  const relevantEventTypes = useMemo(() => [
+    'safety critical fault',
+    'fault',
+    'information',
+    'warning'
+  ], []);
 
-  // Sonra seçili filtrelere göre tekrar filtrele
+  // Olayları ilgili türlere göre filtrele
+  const relevantEvents = useMemo(() => validLogs.filter(log =>
+    log.eventType && relevantEventTypes.includes(log.eventType.toLowerCase().trim())
+  ), [validLogs, relevantEventTypes]);
+
+  // Seçili filtrelere göre son filtrelemeyi yap
   const filteredEvents = useMemo(() => {
     const activeFilters = Object.entries(selectedFilters)
       .filter(([, isActive]) => isActive)
       .map(([key]) => key);
 
-    // Eğer hiçbir filtre aktif değilse veya hepsi aktifse, tüm kritik eventleri göster
-    if (activeFilters.length === 0 || activeFilters.length === Object.keys(selectedFilters).length) {
-      return criticalEvents;
+    if (activeFilters.length === 0) {
+      return [];
     }
 
-    return criticalEvents.filter(log =>
+    return relevantEvents.filter(log =>
       log.eventType && activeFilters.includes(log.eventType.toLowerCase().trim())
     );
-  }, [criticalEvents, selectedFilters]);
+  }, [relevantEvents, selectedFilters]);
 
 
   return (
