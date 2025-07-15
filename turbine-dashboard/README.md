@@ -1,69 +1,40 @@
-# React + TypeScript + Vite
+# Rüzgar Türbini İzleme Paneli (Wind Turbine Monitoring Dashboard)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Bu proje, rüzgar türbini operasyonel verilerini görselleştirmek ve analiz etmek için geliştirilmiş bir React tabanlı web uygulamasıdır. Kullanıcılar, CSV formatındaki veri setlerini yükleyerek türbinin performansını interaktif bir grafik üzerinde inceleyebilir, kritik metrikleri takip edebilir ve önemli olay günlüklerini görüntüleyebilirler.
 
-Currently, two official plugins are available:
+## Özellikler
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+* **CSV Veri Yükleme:** `papaparse` kütüphanesi ile verimli CSV dosyası yükleme ve işleme.
+* **İnteraktif Veri Görselleştirme:** `ECharts for React` kullanılarak oluşturulmuş, yakınlaştırma (zoom) ve kaydırma (pan) özelliklerine sahip zaman serisi grafiği.
+* **Dinamik KPI Göstergeleri:** Yüklenen ve filtrelenen verilere göre anlık olarak hesaplanan temel performans göstergeleri (KPI):
+    * **Kullanılabilirlik (Availability)**
+    * **Arızalar Arası Ortalama Süre (MTBF)**
+    * **Ortalama Tamir Süresi (MTTR)**
+    * **Güvenilirlik (Reliability R(100h))**
+* **Kritik Olay Günlükleri:** Veri setindeki "fault", "warning" gibi kritik olayları filtreleyerek tablo formatında gösterme.
+* **Tarih Aralığı Filtreleme:** Grafik ve metrik hesaplamaları için belirli bir tarih aralığı seçebilme.
+* **Modern ve Reaktif Arayüz:** Vite, React ve TypeScript ile oluşturulmuş, CSS modülleri ile stillendirilmiş bileşen tabanlı bir yapı.
+* **Merkezi Durum Yönetimi:** `Zustand` ile uygulama durumunun (state) verimli bir şekilde yönetimi.
 
-## Expanding the ESLint configuration
+## Teknoloji Yığını
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+* **Frontend:** React 19, TypeScript
+* **Build Aracı:** Vite
+* **Durum Yönetimi:** Zustand
+* **Grafik:** ECharts for React
+* **Tarih/Zaman:** date-fns
+* **UI Bileşenleri:** Material-UI (Date Picker için)
+* **CSV İşleme:** Papaparse
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Kurulum ve Çalıştırma
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+1.  **Gerekli Paketleri Yükleyin:**
+    ```bash
+    npm install
+    ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+2.  **Geliştirme Sunucusunu Başlatın:**
+    ```bash
+    npm run dev
+    ```
+    Uygulama `http://localhost:5173` (veya Vite'in belirlediği başka bir port) üzerinde çalışmaya başlayacaktır.

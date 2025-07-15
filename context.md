@@ -15,18 +15,18 @@ Bu proje, React kullanarak bir rüzgar türbini veri izleme paneli oluşturmayı
 - **Fonksiyonel Bileşenler ve Hook'lar:** Sadece fonksiyonel bileşenler ve hook'lar kullanılacaktır. Class bileşenleri yazılmamalıdır.
 - **İsimlendirme:** Bileşenler `PascalCase`, hook'lar `useCamelCase`, diğer her şey `camelCase` olmalıdır.
 - **Dosya Yapısı:** Proje aşağıdaki gibi organize edilecektir:
-/src
-|-- /components
-|-- /hooks
-|-- /pages
-|-- /store
-|-- /types
-|-- /utils
+  /src
+  |-- /components
+  |-- /hooks
+  |-- /pages
+  |-- /store
+  |-- /types
+  |-- /utils
 
 ## 3. Projeye Özgü Mantık
 
 - **Veri Yapısı ve Türü:** Yüklenecek CSV dosyası, sabit zaman aralıklı bir zaman serisi değil, bir **olay (event) tabanlı logdur**. Bu nedenle, tüm süre hesaplamaları (`Availability`, `Reliability` vb.) iki sıralı olay arasındaki zaman farklarına dayalı olarak yapılmalıdır. `src/types/index.ts` dosyasında tanımlanacak `TurbineEvent` interface'i `timestamp` (Date), `status` (string), `description` (string), `category` (string), `eventType` (string), `power` (number), `windSpeed` (number) gibi alanları içermelidir.
-- **CSV İşleme:** Büyük dosyaları işlemek için `PapaParse` kütüphanesinin `stream` özelliği kullanılacaktır. Bu, tarayıcının donmasını engeller ve performansı artırır.
+- **CSV İşleme:** CSV dosyalarını işlemek için `PapaParse` kütüphanesi kullanılacaktır. Bu, tarayıcının donmasını engeller ve performansı artırır.
 - **Hesaplamalar:** `Availability`, `Reliability (MTBF, MTTR)` gibi metriklerin hesaplamaları, `src/utils/calculations.ts` içinde, olay tabanlı mantığa göre yazılacaktır.
 - **Grafik (Charting):** `ECharts for React` kullanılacaktır. `dataZoom` özelliği, fare tekerleği ile yakınlaştırma ve kaydırma için aktif olarak kullanılacaktır.
 - **Tarih/Zaman İşlemleri:** Tüm tarih ve saat işlemleri için `date-fns` kütüphanesi kullanılacaktır.
