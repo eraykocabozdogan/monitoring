@@ -34,7 +34,7 @@ const identifyFileType = (headers: string[]): 'power' | 'log' | 'unknown' => {
  * @param file - The CSV file to parse.
  * @returns A promise that resolves with the parsed data and its type.
  */
-const parseFile = (file: File): Promise<{ type: 'power' | 'log'; data: (PowerCurvePoint | TurbineEvent)[] }> => {
+const parseFile = (file: File): Promise<{ type: 'power' | 'log' | 'unknown'; data: (PowerCurvePoint | TurbineEvent)[] }> => {
   return new Promise((resolve, reject) => {
     Papa.parse<any>(file, {
       header: true,
@@ -45,7 +45,8 @@ const parseFile = (file: File): Promise<{ type: 'power' | 'log'; data: (PowerCur
         const fileType = identifyFileType(headers);
 
         if (fileType === 'unknown') {
-          return reject(new Error(`Unknown file format for ${file.name}. Check column headers.`));
+            // Hata vermek yerine bilinmeyen tip olarak dönelim, yönetimi çağıran fonksiyona bırakalım
+            return resolve({ type: 'unknown', data: [] });
         }
         
         if (fileType === 'power') {
@@ -76,28 +77,37 @@ const parseFile = (file: File): Promise<{ type: 'power' | 'log'; data: (PowerCur
 
 /**
  * Parses multiple CSV files and sorts them into logs and power curve data.
- * @param files - A FileList object from a file input.
+ * @param files - An array of File objects.
  * @returns A promise that resolves to an object containing arrays of log and power data.
  */
-export const parseCsvFiles = async (files: FileList): Promise<ParsedData> => {
+export const parseCsvFiles = async (files: File[]): Promise<ParsedData> => { // FileList yerine File[] alıyor
   const results: ParsedData = {
     logs: [],
     power: [],
   };
 
-  const parsePromises = Array.from(files).map(file => parseFile(file));
-
+  const parsePromises = files.map(file => parseFile(file));
   const parsedResults = await Promise.all(parsePromises);
+
+  let unknownFileDetected = false;
 
   for (const result of parsedResults) {
     if (result.type === 'log') {
       results.logs.push(...(result.data as TurbineEvent[]));
     } else if (result.type === 'power') {
       results.power.push(...(result.data as PowerCurvePoint[]));
+    } else {
+      unknownFileDetected = true;
     }
   }
 
-  // Sort data by timestamp just in case
+  if (unknownFileDetected) {
+      // Bilinmeyen bir dosya formatı varsa, işlemi kes ve hata fırlat
+      throw new Error("Bir veya daha fazla dosyanın formatı tanınamadı. Lütfen sütun başlıklarını kontrol edin.");
+  }
+
+
+  // Veriyi tarihe göre sırala
   results.logs.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
   results.power.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
 

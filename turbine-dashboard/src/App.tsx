@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
+// Artık tüm veri setini kullanacağımız için filtrelenmiş hook'lara doğrudan ihtiyacımız yok,
+// ama log tablosu için kullanmaya devam edeceğiz.
 import { useFilteredLogData } from './hooks/useFilteredLogData.js';
-import { useFilteredPowerCurveData } from './hooks/useFilteredPowerCurveData.js';
 import { calculateMetrics } from './utils/calculations.js';
 
 import CsvUploader from './components/CsvUploader';
@@ -15,27 +16,30 @@ import KpiCard from './components/KpiCard';
 import DateRangePicker from './components/DateRangePicker';
 
 function App() {
+  // logEvents ve powerCurveData'yı doğrudan store'dan alıyoruz
   const { setMetrics, metrics, logEvents, powerCurveData } = useAppStore();
+  
+  // CriticalLogs bileşeni için filtrelenmiş log verisine hala ihtiyacımız var
   const filteredLogs = useFilteredLogData();
-  const filteredPowerCurve = useFilteredPowerCurveData();
 
-  // Recalculate metrics when the filtered data changes
+  // Metrikleri hesaplamak için tüm veri setlerinin yüklenmesini bekle
   useEffect(() => {
-    // We use the full dataset for the most accurate metrics within the selected date range
-    if (filteredLogs.length > 0 && filteredPowerCurve.length > 0) {
-      const newMetrics = calculateMetrics(filteredLogs, filteredPowerCurve);
+    if (logEvents.length > 0 && powerCurveData.length > 0) {
+      // Metrik hesaplaması için filtrelenmemiş, tam veri setlerini gönderiyoruz
+      const newMetrics = calculateMetrics(logEvents, powerCurveData);
       setMetrics(newMetrics);
     } else {
-      // If data is missing, reset metrics
+      // Veri setlerinden biri eksikse metrikleri sıfırla
       setMetrics({ availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 });
     }
-  }, [filteredLogs, filteredPowerCurve, setMetrics]);
+    // Bağımlılıkları tam veri setleri olarak değiştiriyoruz
+  }, [logEvents, powerCurveData, setMetrics]);
 
   return (
     <DashboardLayout>
       <DataChart />
       <div className={styles.bottomSection}>
-        {/* CriticalLogs now receives the filtered log data */}
+        {/* CriticalLogs bileşeni, tarih aralığına göre filtrelenmiş logları göstermeye devam ediyor */}
         <CriticalLogs logs={filteredLogs} />
         <Sidebar>
           <CsvUploader />

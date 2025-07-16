@@ -3,13 +3,16 @@
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .title {
   font-size: 16px;
   font-weight: 600;
   color: #1f2937;
-  margin: 0 0 16px 0;
+  margin: 0;
 }
 
 .uploadArea {
@@ -25,11 +28,6 @@
 .uploadArea:hover {
   border-color: #3b82f6;
   background-color: #eff6ff;
-}
-
-.uploadArea.dragActive {
-  border-color: #3b82f6;
-  background-color: #dbeafe;
 }
 
 .uploadInput {
@@ -59,22 +57,87 @@
   margin: 0;
 }
 
+/* Yeni Stiller */
+.fileList {
+  margin-top: 8px;
+}
+
+.fileListTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin: 0 0 8px 0;
+}
+
+.fileList ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fileList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #f3f4f6;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.removeButton {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.removeButton:hover {
+  color: #ef4444;
+}
+
+.processButton {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  width: 100%;
+}
+
+.processButton:hover {
+  background-color: #059669;
+}
+
+.processButton:disabled {
+  background-color: #d1d5db;
+  cursor: not-allowed;
+}
+
+
 .fileName {
-  margin-top: 12px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   background-color: #ecfdf5;
-  border: 1px solid #10b981;
+  border: 1px solid #a7f3d0;
   border-radius: 4px;
   color: #065f46;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .error {
-  margin-top: 12px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   background-color: #fef2f2;
-  border: 1px solid #ef4444;
+  border: 1px solid #fecaca;
   border-radius: 4px;
   color: #991b1b;
-  font-size: 12px;
+  font-size: 13px;
 }
