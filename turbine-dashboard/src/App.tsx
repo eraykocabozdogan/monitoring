@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
-// Filtrelenmiş veri hook'ları artık her iki veri türü için de kullanılacak
 import { useFilteredLogData } from './hooks/useFilteredLogData.js';
-import { useFilteredPowerCurveData } from './hooks/useFilteredPowerCurveData.js';
+// useFilteredPowerCurveData'ya artık burada doğrudan ihtiyaç yok.
 import { calculateMetrics } from './utils/calculations.js';
 
 import CsvUploader from './components/CsvUploader';
@@ -16,39 +15,37 @@ import KpiCard from './components/KpiCard';
 import DateRangePicker from './components/DateRangePicker';
 
 function App() {
-  // Global state'den tüm veriyi ve metrikleri al
-  const { setMetrics, metrics, logEvents, powerCurveData } = useAppStore();
+  // Global state'den TÜM veriyi ve dateRange'i al
+  const { setMetrics, metrics, logEvents, powerCurveData, dateRange } = useAppStore();
   
-  // Hook'ları kullanarak seçili tarih aralığına göre filtrelenmiş verileri al
-  const filteredLogs = useFilteredLogData();
-  const filteredPowerCurve = useFilteredPowerCurveData();
+  // CriticalLogs tablosu için filtrelenmiş logları al (bu kanca görsel amaçlı kalıyor)
+  const filteredLogsForTable = useFilteredLogData();
 
   useEffect(() => {
-    // Metrikleri HESAPLAMAK İÇİN FİLTRELENMİŞ VERİYİ KULLAN
-    // Bu sayede, dateRange değiştikçe bu kanca yeniden çalışır.
-    if (filteredLogs.length > 0 && filteredPowerCurve.length > 0) {
-      const newMetrics = calculateMetrics(filteredLogs, filteredPowerCurve);
+    // Hesaplama için artık TÜM veri setini kullanıyoruz
+    if (logEvents.length > 0 && powerCurveData.length > 0 && dateRange.start && dateRange.end) {
+      
+      // calculateMetrics'e tüm veri setini ve seçili aralığı gönder
+      const newMetrics = calculateMetrics(logEvents, powerCurveData, dateRange);
       setMetrics(newMetrics);
+
     } else {
-      // Eğer filtrelenmiş veri boşsa (örneğin seçili aralıkta veri yoksa) metrikleri sıfırla
       setMetrics({ operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 });
     }
-  // useEffect'in bağımlılık dizisini FİLTRELENMİŞ VERİ olarak güncelle
-  // Bu, dateRange her değiştiğinde yeniden hesaplama yapılmasını sağlar.
-  }, [filteredLogs, filteredPowerCurve, setMetrics]);
+  // Bağımlılık dizisi artık tüm veri setlerine ve tarih aralığına bağlı
+  }, [logEvents, powerCurveData, dateRange, setMetrics]);
 
   return (
     <DashboardLayout>
-      {/* DataChart ve CriticalLogs bileşenleri zaten filtrelenmiş veriyi kullanıyor */}
       <DataChart />
       <div className={styles.bottomSection}>
-        <CriticalLogs logs={filteredLogs} />
+        {/* Tablo, görsel olarak filtrelenmiş veriyi göstermeye devam ediyor */}
+        <CriticalLogs logs={filteredLogsForTable} />
         <Sidebar>
           <CsvUploader />
           <DateRangePicker />
           <div className={sidebarStyles.section}>
             <div className={sidebarStyles.kpiGrid}>
-              {/* KPI Kartları artık dinamik olarak güncellenen metrikleri gösterecek */}
               <KpiCard title="Operational Availability (Ao)" value={metrics.operationalAvailability} unit="%" />
               <KpiCard title="Technical Availability (At)" value={metrics.technicalAvailability} unit="%" />
               <KpiCard title="MTBF" value={metrics.mtbf} unit="hours" />
