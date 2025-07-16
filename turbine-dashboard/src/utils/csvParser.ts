@@ -1,41 +1,105 @@
 import Papa from 'papaparse';
-// Hatanın olduğu import'u 'import type' olarak düzeltiyoruz
-import type { TurbineEvent } from '../types/index.js';
+import type { TurbineEvent, PowerCurvePoint } from '../types/index.js';
 
-export const parseCsvFile = (file: File): Promise<TurbineEvent[]> => {
+// Define expected headers to identify file types
+const POWER_CURVE_HEADERS = ['TimeStamp', 'Actual Wind Speed (m/s)', 'Power (kW)', 'Ref Power (kW)'];
+const EVENT_LOG_HEADERS = ['Timestamp', 'Status', 'Description', 'Category', 'Event Type', 'CCU Event'];
+
+interface ParsedData {
+  logs: TurbineEvent[];
+  power: PowerCurvePoint[];
+}
+
+/**
+ * Identifies the type of CSV file based on its headers.
+ * @param headers - Array of header strings from the CSV.
+ * @returns 'power' if it's a power curve file, 'log' if it's an event log file, or 'unknown'.
+ */
+const identifyFileType = (headers: string[]): 'power' | 'log' | 'unknown' => {
+  const hasPowerCurveHeaders = POWER_CURVE_HEADERS.every(h => headers.includes(h));
+  if (hasPowerCurveHeaders) {
+    return 'power';
+  }
+
+  const hasEventLogHeaders = EVENT_LOG_HEADERS.every(h => headers.includes(h));
+  if (hasEventLogHeaders) {
+    return 'log';
+  }
+
+  return 'unknown';
+};
+
+/**
+ * Parses a single CSV file into the appropriate data structure.
+ * @param file - The CSV file to parse.
+ * @returns A promise that resolves with the parsed data and its type.
+ */
+const parseFile = (file: File): Promise<{ type: 'power' | 'log'; data: (PowerCurvePoint | TurbineEvent)[] }> => {
   return new Promise((resolve, reject) => {
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
-      transform: (value: string, header: string) => {
-        if (header === 'Power (kW)' || header === 'Wind Speed (m/s)') {
-          return parseFloat(value) || 0;
-        }
-        if (header === 'Timestamp') {
-          const isoString = value.replace(' ', 'T') + 'Z';
-          const date = new Date(isoString);
-          return isNaN(date.getTime()) ? null : date;
-        }
-        return value;
-      },
+      transformHeader: header => header.trim(),
       complete: (results) => {
-        const cleanData = (results.data as any[]).filter(row => row.Timestamp);
+        const headers = results.meta.fields!;
+        const fileType = identifyFileType(headers);
 
-        const finalData: TurbineEvent[] = cleanData.map(row => ({
-            timestamp: row.Timestamp,
-            status: row.Status,
-            description: row.Description,
-            category: row.Category,
-            eventType: row['Event Type'], // Burası düzeltildi!
-            power: row['Power (kW)'],
-            windSpeed: row['Wind Speed (m/s)']
-        }));
-
-        resolve(finalData);
+        if (fileType === 'unknown') {
+          return reject(new Error(`Unknown file format for ${file.name}. Check column headers.`));
+        }
+        
+        if (fileType === 'power') {
+          const powerData = results.data.map((row): PowerCurvePoint => ({
+            timestamp: new Date(row['TimeStamp'].replace(' ', 'T') + 'Z'),
+            windSpeed: parseFloat(row['Actual Wind Speed (m/s)']) || 0,
+            power: parseFloat(row['Power (kW)']) || 0,
+            refPower: parseFloat(row['Ref Power (kW)']) || 0,
+          })).filter(d => d.timestamp && !isNaN(d.timestamp.getTime()));
+          resolve({ type: 'power', data: powerData });
+        } else if (fileType === 'log') {
+          const logData = results.data.map((row): TurbineEvent => ({
+            timestamp: new Date(row['Timestamp'].replace(' ', 'T') + 'Z'),
+            status: row['Status'],
+            description: row['Description'],
+            category: row['Category'],
+            eventType: row['Event Type'],
+            ccuEvent: row['CCU Event'],
+          })).filter(d => d.timestamp && !isNaN(d.timestamp.getTime()));
+          resolve({ type: 'log', data: logData });
+        }
       },
-      error: (error: Error) => {
-        reject(error);
-      },
+      error: (error: Error) => reject(error),
     });
   });
+};
+
+
+/**
+ * Parses multiple CSV files and sorts them into logs and power curve data.
+ * @param files - A FileList object from a file input.
+ * @returns A promise that resolves to an object containing arrays of log and power data.
+ */
+export const parseCsvFiles = async (files: FileList): Promise<ParsedData> => {
+  const results: ParsedData = {
+    logs: [],
+    power: [],
+  };
+
+  const parsePromises = Array.from(files).map(file => parseFile(file));
+
+  const parsedResults = await Promise.all(parsePromises);
+
+  for (const result of parsedResults) {
+    if (result.type === 'log') {
+      results.logs.push(...(result.data as TurbineEvent[]));
+    } else if (result.type === 'power') {
+      results.power.push(...(result.data as PowerCurvePoint[]));
+    }
+  }
+
+  // Sort data by timestamp just in case
+  results.logs.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
+  results.power.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
+
+  return results;
 };

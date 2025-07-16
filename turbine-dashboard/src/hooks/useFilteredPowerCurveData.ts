@@ -1,26 +1,23 @@
-// src/hooks/useFilteredData.ts
 import { useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 
-export const useFilteredData = () => {
-  const { allEvents, dateRange } = useAppStore();
+export const useFilteredPowerCurveData = () => {
+  const { powerCurveData, dateRange } = useAppStore();
 
   const filteredData = useMemo(() => {
-    // Eğer tarih aralığı seçilmemişse, tüm veriyi döndür
-    if (!dateRange || !dateRange.start || !dateRange.end) {
-      return allEvents;
+    if (!dateRange || !dateRange.start || !dateRange.end || !powerCurveData) {
+      return [];
     }
     
     const startTime = dateRange.start.getTime();
     const endTime = dateRange.end.getTime();
 
-    // Sadece seçili zaman aralığındaki olayları filtrele
-    return allEvents.filter(event => {
+    return powerCurveData.filter(event => {
       if (!event.timestamp) return false;
       const eventTime = event.timestamp.getTime();
       return eventTime >= startTime && eventTime <= endTime;
     });
-  }, [allEvents, dateRange]);
+  }, [powerCurveData, dateRange]);
 
   return filteredData;
 };
