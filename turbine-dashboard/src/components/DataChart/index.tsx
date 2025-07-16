@@ -1,19 +1,91 @@
 import React, { useRef, useMemo, useCallback, memo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store/useAppStore.js';
-import { format } from 'date-fns';
-import type { PowerCurvePoint } from '../../types/index.js';
+import { format, addMinutes, subMinutes } from 'date-fns';
+import type { PowerCurvePoint, TurbineEvent } from '../../types/index.js';
 
 const DataChart: React.FC = () => {
-  const { powerCurveData, dateRange, setDateRange, legendSelected, setLegendSelected } = useAppStore();
+  const {
+    powerCurveData,
+    logEvents,
+    dateRange,
+    setDateRange,
+    legendSelected,
+    setLegendSelected,
+    chartEventFilters,
+  } = useAppStore();
+
   const chartRef = useRef<any>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const validPowerData = useMemo(() => {
-    if (!powerCurveData) return [];
-    return powerCurveData.filter(event => event.timestamp instanceof Date && !isNaN(event.timestamp.getTime()));
-  }, [powerCurveData]);
+  // Olayları grafik üzerinde göstermek için veriyi hazırla
+  const chartEvents = useMemo(() => {
+    const activeFilters = Object.entries(chartEventFilters)
+      .filter(([, isActive]) => isActive)
+      .map(([key]) => key.toLowerCase());
 
+    if (activeFilters.length === 0) return [];
+
+    return logEvents
+      .filter(log => log.eventType && activeFilters.includes(log.eventType.toLowerCase().trim()))
+      .map(log => {
+        const closestPowerPoint = powerCurveData.reduce((prev, curr) =>
+          Math.abs(curr.timestamp!.getTime() - log.timestamp!.getTime()) < Math.abs(prev.timestamp!.getTime() - log.timestamp!.getTime()) ? curr : prev,
+        );
+        return {
+          value: [log.timestamp!.getTime(), closestPowerPoint.power],
+          rawData: log,
+        };
+      });
+  }, [logEvents, powerCurveData, chartEventFilters]);
+
+  // ECharts serilerini oluştur
+  const series = useMemo(() => {
+    const baseSeries = [
+      { name: 'Power (kW)', type: 'line', showSymbol: false, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) },
+      { name: 'Expected Power (kW)', type: 'line', showSymbol: false, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) },
+      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
+    ];
+
+    if (chartEvents.length > 0) {
+      baseSeries.push({
+        name: 'Critical Events',
+        type: 'scatter',
+        symbolSize: 8,
+        itemStyle: { color: '#ef4444' },
+        data: chartEvents,
+        zlevel: 10,
+      });
+      if (!legendSelected.hasOwnProperty('Critical Events')) {
+        legendSelected['Critical Events'] = true;
+      }
+    }
+    return baseSeries;
+  }, [powerCurveData, chartEvents, legendSelected]);
+
+  // Tooltip formatlayıcısı
+  const formatTooltip = useCallback((params: any) => {
+    const firstParam = params[0];
+    if (firstParam.seriesType === 'scatter') {
+      const event = firstParam.data.rawData as TurbineEvent;
+      return `<div style="font-family: sans-serif; font-size: 14px; color: #333; min-width: 250px;"><strong>Event: ${event.eventType}</strong><hr style="border-color: #eee; margin: 4px 0;"><strong>Timestamp:</strong> ${format(event.timestamp!, 'yyyy-MM-dd HH:mm:ss')}<br><strong>Description:</strong> ${event.description}</div>`;
+    }
+    const hoverTime = new Date(firstParam.axisValue);
+    const startTime = subMinutes(hoverTime, 5);
+    const endTime = addMinutes(hoverTime, 5);
+    const eventsInWindow = logEvents.filter(e => {
+      const eventTime = e.timestamp!.getTime();
+      return eventTime >= startTime.getTime() && eventTime <= endTime.getTime();
+    });
+    let eventSummary = '<strong>No critical events in this 10-min window.</strong>';
+    if (eventsInWindow.length > 0) {
+      eventSummary = eventsInWindow.map(e => `<div style="margin-top: 4px;"><strong>${format(e.timestamp!, 'HH:mm:ss')} - ${e.eventType}:</strong><br>${e.description}</div>`).join('');
+    }
+    const powerPoint = powerCurveData[firstParam.dataIndex];
+    return `<div style="font-family: sans-serif; font-size: 14px; color: #333; min-width: 300px;"><strong>${format(hoverTime, 'yyyy-MM-dd HH:mm:ss')}</strong><br>Power: ${powerPoint.power.toFixed(2)} kW | Wind: ${powerPoint.windSpeed.toFixed(2)} m/s<hr style="border-color: #eee; margin: 6px 0;">${eventSummary}</div>`;
+  }, [logEvents, powerCurveData]);
+
+  // *** DÜZELTİLMİŞ KISIM BAŞLANGICI ***
   const handleDataZoom = useCallback(() => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
@@ -25,88 +97,40 @@ const DataChart: React.FC = () => {
         if (newOption.dataZoom && newOption.dataZoom.length > 0) {
           const startValue = newOption.dataZoom[0].startValue;
           const endValue = newOption.dataZoom[0].endValue;
-          if (startValue != null && endValue != null) {
-            if (dateRange.start?.getTime() !== startValue || dateRange.end?.getTime() !== endValue) {
-              setDateRange({ start: new Date(startValue), end: new Date(endValue) });
-            }
+          // Bu kontrol, gereksiz yeniden render'ları önler
+          if (startValue != null && endValue != null && (dateRange.start?.getTime() !== startValue || dateRange.end?.getTime() !== endValue)) {
+            // State'i yeni tarih aralığı ile güncelle
+            setDateRange({ start: new Date(startValue), end: new Date(endValue) });
           }
         }
       }
-    }, 400);
-  }, [dateRange, setDateRange]);
-
+    }, 400); // Kullanıcı etkileşimi bittikten sonra 400ms bekle
+  }, [dateRange, setDateRange]); // Bağımlılıkları doğru şekilde tanımla
+  
   const handleLegendSelectChanged = useCallback((e: any) => {
-    setLegendSelected(e.selected);
+      setLegendSelected(e.selected);
   }, [setLegendSelected]);
 
+  // Olay dinleyicilerini memoize et
   const onEvents = useMemo(() => ({
     datazoom: handleDataZoom,
     legendselectchanged: handleLegendSelectChanged,
   }), [handleDataZoom, handleLegendSelectChanged]);
+  // *** DÜZELTİLMİŞ KISIM SONU ***
 
   const option = useMemo(() => ({
-    tooltip: {
-      trigger: 'axis',
-      formatter: (params: any) => {
-        const dataPoint = params[0];
-        const eventData = validPowerData[dataPoint.dataIndex] as PowerCurvePoint;
-        if (!eventData) return 'No data';
-        return `
-          <div style="font-family: sans-serif; font-size: 14px; color: #333;">
-            <strong>Timestamp:</strong> ${format(eventData.timestamp!, 'yyyy-MM-dd HH:mm:ss')}<br/>
-            <hr style="border-color: #eee; margin: 4px 0;">
-            <strong>Power:</strong> ${eventData.power.toFixed(2)} kW<br/>
-            <strong>Expected Power:</strong> ${eventData.refPower.toFixed(2)} kW<br/>
-            <strong>Wind Speed:</strong> ${eventData.windSpeed.toFixed(2)} m/s
-          </div>
-        `;
-      }
-    },
-    legend: {
-      data: ['Power (kW)', 'Expected Power (kW)', 'Wind Speed (m/s)'],
-      textStyle: { color: '#333' },
-      selected: legendSelected
-    },
+    tooltip: { trigger: 'axis', formatter: formatTooltip, axisPointer: { type: 'cross', animation: false, label: { backgroundColor: '#505765' } } },
+    legend: { data: Object.keys(legendSelected), selected: legendSelected },
     grid: { left: '5%', right: '5%', bottom: '15%', containLabel: true },
-    xAxis: {
-      type: 'time',
-      axisLabel: {
-        formatter: (value: number) => format(new Date(value), 'MMM dd, yyyy')
-      }
-    },
-    yAxis: [
-      { type: 'value', name: 'Power (kW)', nameLocation: 'middle', nameGap: 50 },
-      { type: 'value', name: 'Wind Speed (m/s)', nameLocation: 'middle', nameGap: 50, position: 'right' }
-    ],
-    dataZoom: [
-      { type: 'inside', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime() },
-      { type: 'slider', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime() }
-    ],
-    series: [
-      { name: 'Power (kW)', type: 'line', showSymbol: false, data: validPowerData.map(event => [event.timestamp!.getTime(), event.power]) },
-      { name: 'Expected Power (kW)', type: 'line', showSymbol: false, data: validPowerData.map(event => [event.timestamp!.getTime(), event.refPower]) },
-      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, data: validPowerData.map(event => [event.timestamp!.getTime(), event.windSpeed]) }
-    ],
+    xAxis: { type: 'time' },
+    yAxis: [{ type: 'value', name: 'Power (kW)' }, { type: 'value', name: 'Wind Speed (m/s)', position: 'right' }],
+    dataZoom: [{ type: 'inside', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime() }, { type: 'slider', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime() }],
+    series: series,
     animation: false,
-  }), [validPowerData, dateRange, legendSelected]);
+  }), [dateRange, legendSelected, series, formatTooltip]);
 
-  if (validPowerData.length === 0) {
-    return (
-        <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            minHeight: '450px',
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            padding: '16px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-            color: '#888'
-        }}>
-            Please upload a Power Curve CSV file to see the chart.
-        </div>
-    );
+  if (powerCurveData.length === 0) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '450px', backgroundColor: 'white', borderRadius: '8px', padding: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', color: '#888' }}>Please upload a Power Curve CSV file to see the chart.</div>;
   }
 
   return (

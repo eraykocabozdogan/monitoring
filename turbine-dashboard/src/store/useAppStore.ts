@@ -1,9 +1,16 @@
 import { create } from 'zustand';
 import type { TurbineEvent, PowerCurvePoint, Metrics } from '../types/index.js';
-import { parseCsvFiles } from '../utils/csvParser.js'; // Parser'ı buraya import ediyoruz.
+import { parseCsvFiles } from '../utils/csvParser.js';
+
+// Yeni arayüz tanımı
+interface ChartEventFilters {
+  [key: string]: boolean;
+  'fault': boolean;
+  'safety critical fault': boolean;
+}
 
 interface AppState {
-  stagedFiles: File[]; // Yüklenmek için hazırlanan dosyaların listesi
+  stagedFiles: File[];
   logEvents: TurbineEvent[];
   powerCurveData: PowerCurvePoint[];
   dateRange: {
@@ -13,13 +20,13 @@ interface AppState {
   metrics: Metrics;
   legendSelected: Record<string, boolean>;
   
-  // Staging alanı için yeni fonksiyonlar
+  // Yeni state ve setter'ı ekliyoruz
+  chartEventFilters: ChartEventFilters;
+  setChartEventFilters: (filters: ChartEventFilters) => void;
+
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
-  
-  // Hazırlanan dosyaları işleyecek olan asenkron fonksiyon
   processStagedFiles: () => Promise<{ success: boolean; message: string }>;
-
   setDateRange: (range: { start: Date; end: Date }) => void;
   setMetrics: (newMetrics: Metrics) => void;
   setLegendSelected: (selected: Record<string, boolean>) => void;
@@ -32,9 +39,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   dateRange: { start: null, end: null },
   metrics: { availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 },
   legendSelected: { 'Power (kW)': true, 'Expected Power (kW)': true, 'Wind Speed (m/s)': true },
+  
+  // Yeni state'in başlangıç değeri
+  chartEventFilters: {
+    'fault': true,
+    'safety critical fault': true,
+  },
+  
+  // Yeni setter fonksiyonu
+  setChartEventFilters: (filters) => set({ chartEventFilters: filters }),
 
   addStagedFile: (file) => {
-    // Aynı isimde dosyanın tekrar eklenmesini engelle
     if (!get().stagedFiles.some(f => f.name === file.name)) {
       set(state => ({ stagedFiles: [...state.stagedFiles, file] }));
     }
@@ -51,15 +66,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (stagedFiles.length === 0) {
       return { success: false, message: "İşlenecek dosya seçilmedi." };
     }
-
     try {
-      // Dosyaları işle
       const parsedData = await parseCsvFiles(stagedFiles);
-
-      // Verileri state'e yaz
       const { logs, power } = parsedData;
 
-      // Eğer beklenen dosya tipleri bulunamazsa hata ver
       const hasLogFile = logs.length > 0;
       const hasPowerFile = power.length > 0;
 
@@ -70,7 +80,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         return { success: false, message: `Lütfen ${missingFiles.join(' ve ')} dosyalarını ekleyin.` };
       }
       
-      // Veriyi ve tarih aralığını ayarla
       let earliest = null, latest = null;
       if (power.length > 0) {
           power.forEach(d => {
@@ -84,12 +93,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         logEvents: logs,
         powerCurveData: power,
-        stagedFiles: [], // İşlem sonrası hazırlık listesini temizle
+        stagedFiles: [],
         dateRange: { start: earliest, end: latest }
       });
 
       return { success: true, message: "Dosyalar başarıyla işlendi." };
-
     } catch (error) {
       console.error("Dosya işleme hatası:", error);
       return { success: false, message: error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu." };
