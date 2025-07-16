@@ -9,12 +9,11 @@ interface CriticalLogsProps {
 }
 
 const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
-  // 1. "Information" ve "Warning" filtrelerini başlangıç durumu olarak ekle
   const [selectedFilters, setSelectedFilters] = useState<Record<string, boolean>>({
     'fault': true,
     'safety critical fault': true,
-    'information': true, // Yeni filtre
-    'warning': true,     // Yeni filtre
+    'information': true,
+    'warning': true,
   });
 
   const handleFilterChange = (eventType: string) => {
@@ -26,7 +25,6 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
 
   const validLogs = Array.isArray(logs) ? logs : [];
 
-  // 2. Filtrelenecek olay türlerinin listesini genişlet
   const relevantEventTypes = useMemo(() => [
     'safety critical fault',
     'fault',
@@ -34,12 +32,10 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
     'warning'
   ], []);
 
-  // Olayları ilgili türlere göre filtrele
   const relevantEvents = useMemo(() => validLogs.filter(log =>
     log.eventType && relevantEventTypes.includes(log.eventType.toLowerCase().trim())
   ), [validLogs, relevantEventTypes]);
 
-  // Seçili filtrelere göre son filtrelemeyi yap
   const filteredEvents = useMemo(() => {
     const activeFilters = Object.entries(selectedFilters)
       .filter(([, isActive]) => isActive)
@@ -76,16 +72,27 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
       <div className={styles.tableContainer}>
         <table className={styles.table}>
           <thead>
-            <tr><th>Date</th><th>Time</th><th>Event Type</th><th>Message</th></tr>
+            {/* Tablo başlığına "Name" sütunu eklendi */}
+            <tr><th>Date</th><th>Time</th><th>Status</th><th>Name</th><th>Event Type</th><th>Description</th><th>Category</th><th>CCU Event</th></tr>
           </thead>
           <tbody>
             {filteredEvents.length > 0 ? (
               filteredEvents.map((log, index) => (
-                <tr key={`${log.timestamp?.getTime()}-${index}`}><td>{log.timestamp ? format(log.timestamp, 'MMM d, yyyy') : '--'}</td><td>{log.timestamp ? format(log.timestamp, 'HH:mm:ss') : '--'}</td><td>{log.eventType || '--'}</td><td>{log.description}</td></tr>
+                <tr key={`${log.timestamp?.getTime()}-${index}`}>
+                  <td>{log.timestamp ? format(log.timestamp, 'MMM d, yyyy') : '--'}</td>
+                  <td>{log.timestamp ? format(log.timestamp, 'HH:mm:ss') : '--'}</td>
+                  <td>{log.status || '--'}</td>
+                  {/* Her satıra "Name" verisi eklendi */}
+                  <td>{log.name || '--'}</td>
+                  <td>{log.eventType || '--'}</td>
+                  <td>{log.description}</td>
+                  <td>{log.category || '--'}</td>
+                  <td>{log.ccuEvent || '--'}</td>
+                </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', color: '#888' }}>
+                <td colSpan={8} style={{ textAlign: 'center', color: '#888' }}>
                   No logs to display for the selected filters.
                 </td>
               </tr>

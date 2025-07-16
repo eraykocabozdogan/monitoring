@@ -3,135 +3,141 @@ import type { TurbineEvent, PowerCurvePoint, Metrics } from '../types/index.js';
 const CUT_IN_SPEED = 3;
 const CUT_OUT_SPEED = 25;
 
-interface StatePoint {
-  timestamp: Date;
-  duration: number; // in seconds
-  power: number;
-  windSpeed: number;
-  eventType: string;
+interface TimeInterval {
+    start: Date;
+    end: Date;
 }
 
-/**
- * Merges log events and power curve data into a single, chronological state timeline.
- * Each point in the timeline represents the state of the turbine until the next point.
- */
-const createTimeline = (logs: TurbineEvent[], powerData: PowerCurvePoint[]): StatePoint[] => {
-  if (powerData.length === 0) return [];
-
-  // Create maps for quick lookups
-  const logMap = new Map(logs.map(log => [log.timestamp!.getTime(), log]));
-  const powerMap = new Map(powerData.map(p => [p.timestamp!.getTime(), p]));
-
-  // Get all unique timestamps and sort them
-  const allTimestamps = [...new Set([...logs.map(l => l.timestamp!.getTime()), ...powerData.map(p => p.timestamp!.getTime())])];
-  allTimestamps.sort((a, b) => a - b);
-
-  const timeline: StatePoint[] = [];
-  let lastPower = powerData[0].power;
-  let lastWindSpeed = powerData[0].windSpeed;
-  let lastEventType = 'information'; 
-
-  for (let i = 0; i < allTimestamps.length; i++) {
-    const ts = allTimestamps[i];
-    const nextTs = allTimestamps[i + 1] || ts;
-    const duration = (nextTs - ts) / 1000;
-
-    // Update state if a point exists at this timestamp
-    if (powerMap.has(ts)) {
-      lastPower = powerMap.get(ts)!.power;
-      lastWindSpeed = powerMap.get(ts)!.windSpeed;
+// İki zaman aralığı dizisi arasındaki toplam çakışma süresini saniye olarak hesaplar
+const calculateOverlapSeconds = (intervalsA: TimeInterval[], intervalsB: TimeInterval[]): number => {
+    let overlapDuration = 0;
+    for (const a of intervalsA) {
+        for (const b of intervalsB) {
+            const start = Math.max(a.start.getTime(), b.start.getTime());
+            const end = Math.min(a.end.getTime(), b.end.getTime());
+            if (start < end) {
+                overlapDuration += (end - start) / 1000;
+            }
+        }
     }
-    if (logMap.has(ts)) {
-      lastEventType = logMap.get(ts)!.eventType;
-    }
-
-    timeline.push({
-      timestamp: new Date(ts),
-      duration,
-      power: lastPower,
-      windSpeed: lastWindSpeed,
-      eventType: lastEventType,
-    });
-  }
-
-  return timeline;
+    return overlapDuration;
 };
 
-
 export const calculateMetrics = (logs: TurbineEvent[], powerData: PowerCurvePoint[]): Metrics => {
-  if (powerData.length < 2 || logs.length === 0) {
-    return { availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 };
+  if (powerData.length < 2) {
+    return { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 };
   }
 
-  const timeline = createTimeline(logs, powerData);
-  if (timeline.length < 2) {
-    return { availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 };
+  // Tüm olayları birleştir ve sırala
+  const allEvents = [
+    ...logs.map(e => ({ ...e, type: 'log' })),
+    ...powerData.map(p => ({ ...p, type: 'power' })),
+  ].sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
+  
+  if (allEvents.length < 2) {
+    return { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 };
   }
 
-  let T_operating_seconds = 0;
-  let T_technical_downtime_seconds = 0;
-  let T_weather_outage_seconds = 0;
+  const T_total_seconds = (allEvents[allEvents.length - 1].timestamp!.getTime() - allEvents[0].timestamp!.getTime()) / 1000;
+
+  let T_operating = 0;
+  let T_downtime = 0;
+  let T_repair = 0;
+  let T_weather_outage = 0;
   let numberOfFailures = 0;
 
-  const T_total_duration_seconds = (timeline[timeline.length - 1].timestamp!.getTime() - timeline[0].timestamp!.getTime()) / 1000;
+  // --- GÜNCELLENMİŞ MAINTENANCE TIME HESAPLAMA MANTIĞI ---
+  let T_maintenance = 0;
+  const maintenanceLogs = logs
+    .filter(log => log.eventType === 'EVENT_155' && log.timestamp)
+    .sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
 
-  for (let i = 0; i < timeline.length -1; i++) {
-    const prev = timeline[i];
-    const curr = timeline[i+1];
-
-    const duration = prev.duration;
-
-    // Operating Time: Power is being generated
-    if (prev.power > 0) {
-      T_operating_seconds += duration;
-    }
-
-    // Weather Outage: No power, and wind is out of operational range
-    const isWeatherOutage = prev.power <= 0 && (prev.windSpeed < CUT_IN_SPEED || prev.windSpeed > CUT_OUT_SPEED);
-    if (isWeatherOutage) {
-      T_weather_outage_seconds += duration;
-    }
-
-    // Technical Downtime: No power, but wind is OK. This implies a fault.
-    const isTechnicalDowntime = prev.power <= 0 && (prev.windSpeed >= CUT_IN_SPEED && prev.windSpeed <= CUT_OUT_SPEED);
-    if (isTechnicalDowntime) {
-      T_technical_downtime_seconds += duration;
-    }
-
-    // Failure Event: Transition from operating to technical downtime
-    const wasOperating = prev.power > 0;
-    const isNowTechnicalDowntime = curr.power <= 0 && (curr.windSpeed >= CUT_IN_SPEED && curr.windSpeed <= CUT_OUT_SPEED);
-
-    if (wasOperating && isNowTechnicalDowntime) {
-      // Check if the event type indicates a fault
-      const faultTypes = ['fault', 'safety critical fault'];
-      if(faultTypes.some(type => curr.eventType.toLowerCase().includes(type))){
-          numberOfFailures++;
+  let maintenanceStart: Date | null = null;
+  for (const log of maintenanceLogs) {
+      if (log.status === 'ON') {
+          // Her 'ON' sinyali, en güncel ve doğru bakım başlangıcı olarak kabul edilir.
+          // Bu, önceki kapatılmamış (eksik OFF) 'ON' sinyalini geçersiz kılar.
+          maintenanceStart = log.timestamp;
+      } else if (log.status === 'OFF' && maintenanceStart) {
+          // Eğer geçerli bir başlangıç varsa ve 'OFF' geldiyse, süreyi hesapla.
+          T_maintenance += (log.timestamp!.getTime() - maintenanceStart.getTime()) / 1000;
+          // Periyot kapandığı için başlangıcı sıfırla.
+          maintenanceStart = null;
       }
+  }
+  // --- HESAPLAMA MANTIĞI SONU ---
+
+  // Çakışma hesabı için aralıkları topla
+  const downtimeIntervals: TimeInterval[] = [];
+  const repairIntervals: TimeInterval[] = [];
+  const weatherOutageIntervals: TimeInterval[] = [];
+
+  let lastPower = powerData[0].power > 0;
+  
+  for (let i = 0; i < allEvents.length - 1; i++) {
+    const currentEvent = allEvents[i];
+    const nextEvent = allEvents[i+1];
+    const duration = (nextEvent.timestamp!.getTime() - currentEvent.timestamp!.getTime()) / 1000;
+    
+    if (duration <= 0) continue;
+
+    const { power, windSpeed } = powerData.find(p => p.timestamp === currentEvent.timestamp) || { power: -1, windSpeed: -1 };
+    
+    let isOperating = power > 0;
+    let isWeatherOutage = power <= 0 && (windSpeed < CUT_IN_SPEED || windSpeed > CUT_OUT_SPEED);
+    
+    let isFault = false;
+    
+    if (currentEvent.type === 'log') {
+        const eventType = currentEvent.eventType?.toLowerCase() || '';
+        if (eventType.includes('fault')) {
+            isFault = true;
+        }
     }
+
+    if (isOperating) {
+        T_operating += duration;
+    } else if (isWeatherOutage) {
+        T_weather_outage += duration;
+        weatherOutageIntervals.push({ start: currentEvent.timestamp!, end: nextEvent.timestamp! });
+    } else { // Teknik duruş
+        T_downtime += duration;
+        downtimeIntervals.push({ start: currentEvent.timestamp!, end: nextEvent.timestamp! });
+        if (isFault) {
+            T_repair += duration;
+            repairIntervals.push({ start: currentEvent.timestamp!, end: nextEvent.timestamp! });
+        }
+    }
+    
+    const nextPower = (powerData.find(p => p.timestamp === nextEvent.timestamp) || { power: 0 }).power > 0;
+    if (lastPower && !nextPower && isFault) {
+      numberOfFailures++;
+    }
+    lastPower = isOperating;
   }
 
-  // --- Availability Calculation ---
-  const T_downtime_total = T_technical_downtime_seconds + T_weather_outage_seconds;
-  const availability = T_total_duration_seconds > 0
-    ? ((T_total_duration_seconds - T_downtime_total) / T_total_duration_seconds) * 100
-    : 0;
-    
-  // --- MTBF, MTTR Calculation ---
-  const mtbf_hours = numberOfFailures > 0 ? (T_operating_seconds / 3600) / numberOfFailures : 0;
-  const mttr_hours = numberOfFailures > 0 ? (T_technical_downtime_seconds / 3600) / numberOfFailures : 0;
+  // FORMÜL UYGULAMALARI
+  const ao = T_total_seconds > 0 ? ((T_total_seconds - (T_downtime + T_maintenance + T_weather_outage)) / T_total_seconds) * 100 : 0;
 
-  // --- Reliability R(100h) Calculation (Simplified) ---
-  // A simple reliability calculation based on failure rate (lambda = 1/MTBF)
-  // R(t) = e^(-lambda * t)
-  const lambda_failures_per_hour = mtbf_hours > 0 ? 1 / mtbf_hours : 0;
-  const reliability_R100h = Math.exp(-lambda_failures_per_hour * 100) * 100;
+  const at_denominator = T_total_seconds - (T_maintenance + T_weather_outage);
+  const at = at_denominator > 0 ? ((T_total_seconds - (T_downtime + T_maintenance)) / at_denominator) * 100 : 0;
 
+  const mtbf_hours = numberOfFailures > 0 ? (T_operating / 3600) / numberOfFailures : 0;
+
+  const mttr_hours = numberOfFailures > 0 ? (T_downtime / 3600) / numberOfFailures : 0;
+
+  const overlap_dt_wot = calculateOverlapSeconds(downtimeIntervals, weatherOutageIntervals);
+  const overlap_rt_wot = calculateOverlapSeconds(repairIntervals, weatherOutageIntervals);
+  let reliabilityR = 0;
+  if (T_weather_outage > 0) {
+      reliabilityR = (1 - (overlap_dt_wot + overlap_rt_wot) / T_weather_outage) * 100;
+  }
 
   return {
-    availability: isFinite(availability) ? parseFloat(availability.toFixed(1)) : 0,
+    operationalAvailability: isFinite(ao) ? parseFloat(ao.toFixed(1)) : 0,
+    technicalAvailability: isFinite(at) ? parseFloat(at.toFixed(1)) : 0,
     mtbf: isFinite(mtbf_hours) ? parseFloat(mtbf_hours.toFixed(1)) : 0,
     mttr: isFinite(mttr_hours) ? parseFloat(mttr_hours.toFixed(1)) : 0,
-    reliability_R100h: isFinite(reliability_R100h) ? parseFloat(reliability_R100h.toFixed(1)) : 0,
+    reliabilityR: isFinite(reliabilityR) ? parseFloat(reliabilityR.toFixed(1)) : 0,
   };
 };

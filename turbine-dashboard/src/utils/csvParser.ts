@@ -1,9 +1,9 @@
 import Papa from 'papaparse';
 import type { TurbineEvent, PowerCurvePoint } from '../types/index.js';
 
-// Define expected headers to identify file types
+// Beklenen başlıklara "Name" eklendi
 const POWER_CURVE_HEADERS = ['TimeStamp', 'Actual Wind Speed (m/s)', 'Power (kW)', 'Ref Power (kW)'];
-const EVENT_LOG_HEADERS = ['Timestamp', 'Status', 'Description', 'Category', 'Event Type', 'CCU Event'];
+const EVENT_LOG_HEADERS = ['Timestamp', 'Status', 'Name', 'Description', 'Category', 'Event Type', 'CCU Event'];
 
 interface ParsedData {
   logs: TurbineEvent[];
@@ -45,7 +45,6 @@ const parseFile = (file: File): Promise<{ type: 'power' | 'log' | 'unknown'; dat
         const fileType = identifyFileType(headers);
 
         if (fileType === 'unknown') {
-            // Hata vermek yerine bilinmeyen tip olarak dönelim, yönetimi çağıran fonksiyona bırakalım
             return resolve({ type: 'unknown', data: [] });
         }
         
@@ -58,9 +57,11 @@ const parseFile = (file: File): Promise<{ type: 'power' | 'log' | 'unknown'; dat
           })).filter(d => d.timestamp && !isNaN(d.timestamp.getTime()));
           resolve({ type: 'power', data: powerData });
         } else if (fileType === 'log') {
+          // "Name" alanı artık okunup nesneye ekleniyor
           const logData = results.data.map((row): TurbineEvent => ({
             timestamp: new Date(row['Timestamp'].replace(' ', 'T') + 'Z'),
             status: row['Status'],
+            name: row['Name'],
             description: row['Description'],
             category: row['Category'],
             eventType: row['Event Type'],
@@ -80,7 +81,7 @@ const parseFile = (file: File): Promise<{ type: 'power' | 'log' | 'unknown'; dat
  * @param files - An array of File objects.
  * @returns A promise that resolves to an object containing arrays of log and power data.
  */
-export const parseCsvFiles = async (files: File[]): Promise<ParsedData> => { // FileList yerine File[] alıyor
+export const parseCsvFiles = async (files: File[]): Promise<ParsedData> => {
   const results: ParsedData = {
     logs: [],
     power: [],
@@ -89,25 +90,14 @@ export const parseCsvFiles = async (files: File[]): Promise<ParsedData> => { // 
   const parsePromises = files.map(file => parseFile(file));
   const parsedResults = await Promise.all(parsePromises);
 
-  let unknownFileDetected = false;
-
   for (const result of parsedResults) {
     if (result.type === 'log') {
       results.logs.push(...(result.data as TurbineEvent[]));
     } else if (result.type === 'power') {
       results.power.push(...(result.data as PowerCurvePoint[]));
-    } else {
-      unknownFileDetected = true;
     }
   }
 
-  if (unknownFileDetected) {
-      // Bilinmeyen bir dosya formatı varsa, işlemi kes ve hata fırlat
-      throw new Error("Bir veya daha fazla dosyanın formatı tanınamadı. Lütfen sütun başlıklarını kontrol edin.");
-  }
-
-
-  // Veriyi tarihe göre sırala
   results.logs.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
   results.power.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
 

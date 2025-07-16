@@ -2,13 +2,7 @@ import { create } from 'zustand';
 import type { TurbineEvent, PowerCurvePoint, Metrics } from '../types/index.js';
 import { parseCsvFiles } from '../utils/csvParser.js';
 
-// Yeni arayüz tanımı
-interface ChartEventFilters {
-  [key: string]: boolean;
-  'fault': boolean;
-  'safety critical fault': boolean;
-}
-
+// ... (AppState arayüzünde değişiklik yok)
 interface AppState {
   stagedFiles: File[];
   logEvents: TurbineEvent[];
@@ -19,10 +13,6 @@ interface AppState {
   };
   metrics: Metrics;
   legendSelected: Record<string, boolean>;
-  
-  // Yeni state ve setter'ı ekliyoruz
-  chartEventFilters: ChartEventFilters;
-  setChartEventFilters: (filters: ChartEventFilters) => void;
 
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
@@ -32,6 +22,7 @@ interface AppState {
   setLegendSelected: (selected: Record<string, boolean>) => void;
 }
 
+
 export const useAppStore = create<AppState>((set, get) => ({
   stagedFiles: [],
   logEvents: [],
@@ -39,16 +30,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   dateRange: { start: null, end: null },
   metrics: { availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 },
   legendSelected: { 'Power (kW)': true, 'Expected Power (kW)': true, 'Wind Speed (m/s)': true },
-  
-  // Yeni state'in başlangıç değeri
-  chartEventFilters: {
-    'fault': true,
-    'safety critical fault': true,
-  },
-  
-  // Yeni setter fonksiyonu
-  setChartEventFilters: (filters) => set({ chartEventFilters: filters }),
 
+  // ... (addStagedFile ve removeStagedFile'da değişiklik yok)
   addStagedFile: (file) => {
     if (!get().stagedFiles.some(f => f.name === file.name)) {
       set(state => ({ stagedFiles: [...state.stagedFiles, file] }));
@@ -70,31 +53,43 @@ export const useAppStore = create<AppState>((set, get) => ({
       const parsedData = await parseCsvFiles(stagedFiles);
       const { logs, power } = parsedData;
 
-      const hasLogFile = logs.length > 0;
-      const hasPowerFile = power.length > 0;
-
-      if (!hasLogFile || !hasPowerFile) {
-        let missingFiles = [];
-        if (!hasLogFile) missingFiles.push("Event Log");
-        if (!hasPowerFile) missingFiles.push("Power Curve");
-        return { success: false, message: `Lütfen ${missingFiles.join(' ve ')} dosyalarını ekleyin.` };
+      if (logs.length === 0 && power.length === 0) {
+        return { 
+          success: false, 
+          message: "Dosya formatları tanınamadı veya dosyalar boş. Lütfen geçerli bir Power Curve veya Event Log dosyası yükleyin." 
+        };
       }
       
+      const allTimestamps = [
+          ...power.map(p => p.timestamp), 
+          ...logs.map(l => l.timestamp)
+        ].filter(Boolean) as Date[];
+
       let earliest = null, latest = null;
-      if (power.length > 0) {
-          power.forEach(d => {
-              if (d.timestamp) {
-                  if (!earliest || d.timestamp < earliest) earliest = d.timestamp;
-                  if (!latest || d.timestamp > latest) latest = d.timestamp;
-              }
-          });
+      if (allTimestamps.length > 0) {
+          earliest = new Date(Math.min(...allTimestamps.map(d => d.getTime())));
+          latest = new Date(Math.max(...allTimestamps.map(d => d.getTime())));
+      }
+      
+      // Legend'ı mevcut verilere göre dinamik olarak oluştur
+      const newLegendSelected: Record<string, boolean> = {
+        'Power (kW)': true,
+        'Expected Power (kW)': true,
+        'Wind Speed (m/s)': true,
+      };
+
+      // Critical Events seçeneğini sadece hem log hem de power verisi varsa ekle
+      if (logs.length > 0 && power.length > 0) {
+        newLegendSelected['Critical Events'] = true;
       }
 
       set({
         logEvents: logs,
         powerCurveData: power,
         stagedFiles: [],
-        dateRange: { start: earliest, end: latest }
+        dateRange: { start: earliest, end: latest },
+        metrics: { availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 },
+        legendSelected: newLegendSelected, // Dinamik olarak oluşturulan legend'ı ayarla
       });
 
       return { success: true, message: "Dosyalar başarıyla işlendi." };

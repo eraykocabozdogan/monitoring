@@ -1,6 +1,7 @@
 export interface TurbineEvent {
   timestamp: Date | null;
   status: string;
+  name: string; // "Name" alanı eklendi
   description: string;
   category: string;
   eventType: string;
