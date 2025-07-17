@@ -129,7 +129,7 @@ const DataChart: React.FC = () => {
   }), [dateRange, legendSelected, series, formatTooltip]);
 
   if (powerCurveData.length === 0) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '450px', backgroundColor: 'white', borderRadius: '8px', padding: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', color: '#888' }}>Grafiği görmek için lütfen bir Power Curve dosyası yükleyin.</div>;
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '450px', backgroundColor: 'white', borderRadius: '8px', padding: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', color: '#888' }}>Please upload a Power Curve file to see the chart.</div>;
   }
 
   return (

@@ -35,7 +35,7 @@ const CsvUploader = () => {
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>Veri Yükleme</h2>
+      <h2 className={styles.title}>Data Upload</h2>
       
       {/* Dosya Seçme Alanı */}
       <div className={styles.uploadArea} onClick={handleUploadClick}>
@@ -47,17 +47,17 @@ const CsvUploader = () => {
           className={styles.uploadInput}
         />
         <button className={styles.uploadButton} type="button">
-          Dosya Ekle
+          Add File
         </button>
         <p className={styles.uploadText}>
-          İşlemek için Event Log ve Power Curve dosyalarını ekleyin.
+          Add Event Log and Power Curve files to process.
         </p>
       </div>
 
       {/* Yüklenen Dosyalar Listesi */}
       {stagedFiles.length > 0 && (
         <div className={styles.fileList}>
-          <h3 className={styles.fileListTitle}>Yüklenecek Dosyalar:</h3>
+          <h3 className={styles.fileListTitle}>Files to be uploaded:</h3>
           <ul>
             {stagedFiles.map(file => (
               <li key={file.name}>
@@ -65,7 +65,7 @@ const CsvUploader = () => {
                 <button
                   onClick={() => removeStagedFile(file.name)}
                   className={styles.removeButton}
-                  title="Dosyayı kaldır"
+                  title="Remove file"
                 >
                   &times;
                 </button>
@@ -87,7 +87,7 @@ const CsvUploader = () => {
         onClick={handleProcessClick}
         disabled={isLoading || stagedFiles.length === 0}
       >
-        {isLoading ? 'İşleniyor...' : 'Seçili Dosyaları Onayla'}
+        {isLoading ? 'Processing...' : 'Process Selected Files'}
       </button>
     </div>
   );
