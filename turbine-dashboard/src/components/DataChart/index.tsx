@@ -44,9 +44,10 @@ const DataChart: React.FC = () => {
   // ECharts serilerini oluştur
   const series = useMemo(() => {
     const baseSeries = [
-      { name: 'Power (kW)', type: 'line', showSymbol: false, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) },
-      { name: 'Expected Power (kW)', type: 'line', showSymbol: false, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) },
-      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
+      // Değişiklik burada: type 'scatter' -> 'line' ve çizgi kalınlığı inceltildi.
+      { name: 'Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 1 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) },
+      { name: 'Expected Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 1 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) },
+      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, lineStyle: { width: 1 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
     ];
 
     if (chartEvents.length > 0) {
@@ -62,7 +63,7 @@ const DataChart: React.FC = () => {
     return baseSeries;
   }, [powerCurveData, chartEvents]);
 
-  // Tooltip formatlayıcısı (değişiklik yok)
+  // Tooltip formatlayıcısı
   const formatTooltip = useCallback((params: any) => {
     const firstParam = params[0];
     if (!firstParam) return '';
@@ -106,7 +107,7 @@ const DataChart: React.FC = () => {
       }
     }, 400);
   }, [dateRange, setDateRange]);
-  
+
   const handleLegendSelectChanged = useCallback((e: any) => {
       setLegendSelected(e.selected);
   }, [setLegendSelected]);
