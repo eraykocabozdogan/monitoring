@@ -37,8 +37,9 @@ function App() {
       <div className={styles.bottomSection}>
         {/* Sol Sütun İçeriği */}
         <div>
+          {/* Ana Kontrol Bölümü */}
           <div className={styles.topControlsSection}>
-            {/* Üst Sıra: Sadece KPI Metrikleri */}
+            {/* Üst Sıra: Tek bir bileşen olarak KPI Metrikleri */}
             <div className={styles.kpiRow}>
               <KpiCard title="Operational Availability (Ao)" value={metrics.operationalAvailability} unit="%" />
               <KpiCard title="Technical Availability (At)" value={metrics.technicalAvailability} unit="%" />

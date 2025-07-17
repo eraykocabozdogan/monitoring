@@ -32,7 +32,7 @@
   width: 100%;
 }
 
-/* Ana kontrol bölümü artık dikey bir flex konteyneri */
+/* Ana kontrol bölümü, içindeki sıraları dikey hizalar */
 .topControlsSection {
   display: flex;
   flex-direction: column;
@@ -40,24 +40,28 @@
   margin-bottom: 16px;
 }
 
-/* Yeni KPI satırı stili */
+/* KPI satırı artık tek bir kutu gibi görünecek */
 .kpiRow {
   display: grid;
-  grid-template-columns: repeat(5, 1fr); /* 5 KPI için 5 eşit sütun */
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
+  background-color: var(--color-background-secondary);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-main);
 }
 
-/* Yeni kontrol satırı stili */
+/* Kontrol satırı, iki bileşeni yan yana hizalar */
 .controlsRow {
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* 2 bileşen için 2 eşit sütun */
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 
+
 @media (max-width: 1200px) {
-  /* Dar ekranlarda her iki satır da tek sütunlu olur */
   .kpiRow {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Daha esnek bir yapı */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
   .controlsRow {
     grid-template-columns: 1fr;
