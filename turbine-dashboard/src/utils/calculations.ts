@@ -1,96 +1,41 @@
 import type { TurbineEvent, PowerCurvePoint, Metrics } from '../types/index.js';
 
+const CUT_IN_SPEED = 3;
+const CUT_OUT_SPEED = 25;
+
 interface TimeInterval {
     start: Date;
     end: Date;
 }
 
-const MERGE_GAP_SECONDS = 3600; // 1 saat
-const MAX_DURATION_SECONDS = 2 * 24 * 60 * 60; // 2 gün
-
-const getFilteredEventIntervals = (logs: TurbineEvent[], eventName: string): TimeInterval[] => {
-    const sortedLogs = logs.filter(l => l.name === eventName && l.timestamp).sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
-    let rawIntervals: TimeInterval[] = [];
-    let intervalStart: Date | null = null;
-    for (const log of sortedLogs) {
-        if (log.status.toLowerCase() === 'on') {
-            if (!intervalStart) intervalStart = log.timestamp;
-        } else if (log.status.toLowerCase() === 'off' && intervalStart) {
-            rawIntervals.push({ start: intervalStart, end: log.timestamp! });
-            intervalStart = null;
-        }
-    }
-    const durationFiltered = rawIntervals.filter(i => (i.end.getTime() - i.start.getTime()) / 1000 <= MAX_DURATION_SECONDS);
-    if (durationFiltered.length === 0) return [];
-    
-    const mergedIntervals: TimeInterval[] = [];
-    let current = { ...durationFiltered[0] };
-    for (let i = 1; i < durationFiltered.length; i++) {
-        const next = durationFiltered[i];
-        const gap = (next.start.getTime() - current.end.getTime()) / 1000;
-        if (gap < MERGE_GAP_SECONDS) {
-            current.end = next.end;
-        } else {
-            mergedIntervals.push(current);
-            current = { ...next };
-        }
-    }
-    mergedIntervals.push(current);
-    return mergedIntervals;
-};
-
-const buildIntervalsFromCondition = (powerData: PowerCurvePoint[], condition: (p: PowerCurvePoint) => boolean): TimeInterval[] => {
-    const intervals: TimeInterval[] = [];
-    if (powerData.length < 2) return [];
-    for (let i = 0; i < powerData.length - 1; i++) {
-        const p1 = powerData[i];
-        const p2 = powerData[i + 1];
-        if (condition(p1)) {
-            intervals.push({ start: p1.timestamp!, end: p2.timestamp! });
-        }
-    }
-    return intervals;
-};
-
-const getUnionOfIntervals = (intervalLists: TimeInterval[][]): TimeInterval[] => {
-    const allIntervals = intervalLists.flat().sort((a, b) => a.start.getTime() - b.start.getTime());
-    if (allIntervals.length === 0) return [];
-
-    const union: TimeInterval[] = [];
-    let current = { ...allIntervals[0] };
-    for (let i = 1; i < allIntervals.length; i++) {
-        const next = allIntervals[i];
-        if (next.start.getTime() <= current.end.getTime()) {
-            current.end = new Date(Math.max(current.end.getTime(), next.end.getTime()));
-        } else {
-            union.push(current);
-            current = { ...next };
-        }
-    }
-    union.push(current);
-    return union;
-};
-
+// Helper: Verilen zaman aralıklarının seçili tarih aralığıyla kesişen toplam süresini saniye olarak hesaplar.
 const getTotalDurationInSeconds = (intervals: TimeInterval[], dateRange: TimeInterval): number => {
-    let total = 0;
+    if (!intervals || intervals.length === 0) return 0;
+    let totalDuration = 0;
     for (const interval of intervals) {
         const start = Math.max(interval.start.getTime(), dateRange.start.getTime());
         const end = Math.min(interval.end.getTime(), dateRange.end.getTime());
-        if (start < end) total += (end - start);
-    }
-    return total / 1000;
-};
-
-const calculateOverlapSeconds = (intervalsA: TimeInterval[], intervalsB: TimeInterval[], dateRange: TimeInterval): number => {
-    let overlap = 0;
-    for (const a of intervalsA) {
-        for (const b of intervalsB) {
-            const start = Math.max(a.start.getTime(), b.start.getTime(), dateRange.start.getTime());
-            const end = Math.min(a.end.getTime(), b.end.getTime(), dateRange.end.getTime());
-            if (start < end) overlap += (end - start);
+        if (start < end) {
+            totalDuration += (end - start);
         }
     }
-    return overlap / 1000;
+    return totalDuration / 1000;
+};
+
+// Helper: İki zaman aralığı kümesi arasındaki toplam çakışma süresini saniye olarak hesaplar.
+const calculateOverlapSeconds = (intervalsA: TimeInterval[], intervalsB: TimeInterval[]): number => {
+    if (!intervalsA || !intervalsB || intervalsA.length === 0 || intervalsB.length === 0) return 0;
+    let overlapDuration = 0;
+    for (const a of intervalsA) {
+        for (const b of intervalsB) {
+            const start = Math.max(a.start.getTime(), b.start.getTime());
+            const end = Math.min(a.end.getTime(), b.end.getTime());
+            if (start < end) {
+                overlapDuration += (end - start);
+            }
+        }
+    }
+    return overlapDuration / 1000;
 };
 
 export const calculateMetrics = (
@@ -98,45 +43,101 @@ export const calculateMetrics = (
     powerData: PowerCurvePoint[],
     dateRange: { start: Date | null, end: Date | null }
 ): Metrics => {
-    const defaultResult = { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 };
-    if (!dateRange.start || !dateRange.end || powerData.length < 2) return defaultResult;
+
+    if (!dateRange.start || !dateRange.end || powerData.length < 2) {
+        return { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 };
+    }
+
+    const T_total_seconds = (dateRange.end.getTime() - dateRange.start.getTime()) / 1000;
+    if (T_total_seconds <= 0) return { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 };
+
+    // --- ADIM 1: Her durum için BAĞIMSIZ zaman aralığı listeleri oluştur ---
+    const operatingIntervals: TimeInterval[] = [];
+    const weatherOutageIntervals: TimeInterval[] = [];
+    const repairIntervals: TimeInterval[] = [];
+    const unclassifiedDowntimeIntervals: TimeInterval[] = [];
     
+    const faultLogs = logs.filter(l => l.eventType?.toLowerCase().includes('fault'));
+
+    for (let i = 0; i < powerData.length - 1; i++) {
+        const p1 = powerData[i];
+        const p2 = powerData[i + 1];
+        const interval: TimeInterval = { start: p1.timestamp!, end: p2.timestamp! };
+
+        if (p1.power > 0) {
+            operatingIntervals.push(interval);
+        } else { // Güç üretimi yoksa (downtime)
+            const isWeatherOutage = p1.windSpeed < CUT_IN_SPEED || p1.windSpeed > CUT_OUT_SPEED;
+            const hasFault = faultLogs.some(l => l.timestamp! >= interval.start && l.timestamp! < interval.end);
+
+            if (isWeatherOutage) {
+                weatherOutageIntervals.push(interval);
+            }
+            if (hasFault) {
+                repairIntervals.push(interval);
+            }
+            // Eğer hava koşulu DEĞİLSE ve arıza olarak işaretlenmemişse, bu "diğer/belirsiz" bir teknik duruştur.
+            if (!isWeatherOutage && !hasFault) {
+                unclassifiedDowntimeIntervals.push(interval);
+            }
+        }
+    }
+
+    // Bakım logları, powerData'dan tamamen bağımsız olarak kendi aralıklarını oluşturur.
+    const maintenanceIntervals: TimeInterval[] = logs
+        .filter(l => l.eventType === 'EVENT_155' && l.status === 'ON')
+        .map(startLog => {
+            const endLog = logs.find(l => l.eventType === 'EVENT_155' && l.status === 'OFF' && l.timestamp! > startLog.timestamp!);
+            return endLog ? { start: startLog.timestamp!, end: endLog.timestamp! } : null;
+        })
+        .filter((interval): interval is TimeInterval => interval !== null);
+
+    // --- ADIM 2: Süreleri ve Kesişimleri Hesapla ---
     const range: TimeInterval = { start: dateRange.start, end: dateRange.end };
-    const T_total = (range.end.getTime() - range.start.getTime()) / 1000;
-    if (T_total <= 0) return defaultResult;
 
-    const maintenanceIntervals = getFilteredEventIntervals(logs, 'EVENT_155');
-    const repairIntervals = getFilteredEventIntervals(logs, 'EVENT_156');
-    const downtimeIntervals = buildIntervalsFromCondition(powerData, p => p.power <= 0);
-    const weatherOutageIntervals = buildIntervalsFromCondition(powerData, p => p.power <= 0 && (p.windSpeed < 3 || p.windSpeed > 25));
-    const operatingIntervals = buildIntervalsFromCondition(powerData, p => p.power > 0);
-
-    const T_maintenance = getTotalDurationInSeconds(maintenanceIntervals, range);
-    const T_weatheroutage = getTotalDurationInSeconds(weatherOutageIntervals, range);
-    const T_repairtime = getTotalDurationInSeconds(repairIntervals, range);
-
-    // Düzeltilmiş T_operating hesaplaması
     const T_operating = getTotalDurationInSeconds(operatingIntervals, range);
-    // T_downtime'ı da doğrudan hesaplayalım.
-    const T_downtime = getTotalDurationInSeconds(downtimeIntervals, range);
+    const Tmt = getTotalDurationInSeconds(maintenanceIntervals, range);
+    const Twot = getTotalDurationInSeconds(weatherOutageIntervals, range);
+    const Trt = getTotalDurationInSeconds(repairIntervals, range);
+    const T_unclassified_dt = getTotalDurationInSeconds(unclassifiedDowntimeIntervals, range);
+    
+    // Tdt (Toplam Teknik Duruş), hem sınıflandırılmış arızaları (Trt) hem de belirsiz duruşları içerir.
+    const Tdt = Trt + T_unclassified_dt;
 
-    const ao = T_total > 0 ? (T_operating / T_total) * 100 : 0;
-    const at_denominator = T_total - T_maintenance - T_weatheroutage;
+    // --- ADIM 3: Metrikleri Doğru Formüllerle Hesapla ---
+
+    // Technical Availability (AT): Kontrol edilemeyen (hava) ve planlı (bakım) süreler hariç, türbinin çalışmaya müsait olduğu zaman.
+    const at_denominator = T_total_seconds - Twot - Tmt;
     const at = at_denominator > 0 ? (T_operating / at_denominator) * 100 : 0;
     
-    const numberOfFailures = repairIntervals.length;
-    const mtbf_hours = numberOfFailures > 0 && T_operating > 0 ? (T_operating / 3600) / numberOfFailures : 0;
-    const mttr_hours = numberOfFailures > 0 ? (T_repairtime / 3600) / numberOfFailures : 0;
+    // Operational Availability (AO): Toplam takvim süresi içinde türbinin fiilen ne kadar çalıştığı.
+    const ao = T_total_seconds > 0 ? (T_operating / T_total_seconds) * 100 : 0;
     
-    let reliabilityR = 100;
-    if (T_weatheroutage > 0) {
-        const overlap_dt_wot = calculateOverlapSeconds(downtimeIntervals, weatherOutageIntervals, range);
-        const overlap_rt_wot = calculateOverlapSeconds(repairIntervals, weatherOutageIntervals, range);
-        reliabilityR = (1 - ((overlap_dt_wot + overlap_rt_wot) / T_weatheroutage)) * 100;
+    // MTBF & MTTR
+    // Arıza sayısını daha doğru hesaplayalım: Çalışma periyodundan sonra bir arıza periyodu başlıyorsa 1 sayılır.
+    let numberOfFailures = 0;
+    for (let i = 0; i < operatingIntervals.length; i++) {
+        const operatingEnd = operatingIntervals[i].end.getTime();
+        const nextFaultStart = repairIntervals.find(r => r.start.getTime() >= operatingEnd);
+        if (nextFaultStart && (nextFaultStart.start.getTime() - operatingEnd < 1000 * 60 * 10)) { // 10dk içinde arıza olduysa
+            numberOfFailures++;
+        }
     }
-    
+    const mtbf_hours = numberOfFailures > 0 ? (T_operating / 3600) / numberOfFailures : 0;
+    const mttr_hours = numberOfFailures > 0 ? (Trt / 3600) / numberOfFailures : 0;
+
+    // Reliability (R): Hava koşulları nedeniyle duruş olması gerekirken, aynı anda teknik bir arıza yaşanma oranını ölçer.
+    let reliabilityR = 100;
+    if (Twot > 0) {
+        // Formül: R = 1 - Overlap(RT, WOT) / WOT
+        // Sadece "tamir" (fault) aralıklarının hava durumuyla kesişimine bakarız.
+        const overlap_rt_wot = calculateOverlapSeconds(repairIntervals, weatherOutageIntervals);
+        reliabilityR = (1 - (overlap_rt_wot / Twot)) * 100;
+    }
+
+    // Sonuçların 0-100 aralığında kalmasını garantile
     const clamp = (num: number) => Math.max(0, Math.min(100, num));
-    
+
     return {
         operationalAvailability: clamp(isFinite(ao) ? parseFloat(ao.toFixed(2)) : 0),
         technicalAvailability: clamp(isFinite(at) ? parseFloat(at.toFixed(2)) : 0),

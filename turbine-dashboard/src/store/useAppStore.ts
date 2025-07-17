@@ -2,13 +2,18 @@ import { create } from 'zustand';
 import type { TurbineEvent, PowerCurvePoint, Metrics } from '../types/index.js';
 import { parseCsvFiles } from '../utils/csvParser.js';
 
+// ... (AppState arayüzünde değişiklik yok)
 interface AppState {
   stagedFiles: File[];
   logEvents: TurbineEvent[];
   powerCurveData: PowerCurvePoint[];
-  dateRange: { start: Date | null; end: Date | null; };
+  dateRange: {
+    start: Date | null;
+    end: Date | null;
+  };
   metrics: Metrics;
   legendSelected: Record<string, boolean>;
+
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
   processStagedFiles: () => Promise<{ success: boolean; message: string }>;
@@ -17,54 +22,83 @@ interface AppState {
   setLegendSelected: (selected: Record<string, boolean>) => void;
 }
 
-const initialMetrics: Metrics = { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0, };
 
 export const useAppStore = create<AppState>((set, get) => ({
   stagedFiles: [],
   logEvents: [],
   powerCurveData: [],
   dateRange: { start: null, end: null },
-  metrics: initialMetrics,
+  metrics: { availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 },
   legendSelected: { 'Power (kW)': true, 'Expected Power (kW)': true, 'Wind Speed (m/s)': true },
+
+  // ... (addStagedFile ve removeStagedFile'da değişiklik yok)
   addStagedFile: (file) => {
     if (!get().stagedFiles.some(f => f.name === file.name)) {
       set(state => ({ stagedFiles: [...state.stagedFiles, file] }));
     }
   },
+
   removeStagedFile: (fileName) => {
-    set(state => ({ stagedFiles: state.stagedFiles.filter(f => f.name !== fileName) }));
+    set(state => ({
+      stagedFiles: state.stagedFiles.filter(f => f.name !== fileName),
+    }));
   },
+
   processStagedFiles: async () => {
     const { stagedFiles } = get();
-    if (stagedFiles.length === 0) return { success: false, message: "İşlenecek dosya seçilmedi." };
-    
+    if (stagedFiles.length === 0) {
+      return { success: false, message: "İşlenecek dosya seçilmedi." };
+    }
     try {
       const parsedData = await parseCsvFiles(stagedFiles);
-      if (parsedData.logs.length === 0 && parsedData.power.length === 0) {
-        return { success: false, message: "Dosya formatları tanınamadı veya dosyalar boş. Lütfen geçerli bir Power Curve veya Event Log dosyası yükleyin." };
+      const { logs, power } = parsedData;
+
+      if (logs.length === 0 && power.length === 0) {
+        return { 
+          success: false, 
+          message: "Dosya formatları tanınamadı veya dosyalar boş. Lütfen geçerli bir Power Curve veya Event Log dosyası yükleyin." 
+        };
       }
       
-      const powerTimestamps = parsedData.power.map(p => p.timestamp!.getTime());
-      const logTimestamps = parsedData.logs.map(l => l.timestamp!.getTime());
-      const allTimestamps = [...powerTimestamps, ...logTimestamps];
+      const allTimestamps = [
+          ...power.map(p => p.timestamp), 
+          ...logs.map(l => l.timestamp)
+        ].filter(Boolean) as Date[];
+
+      let earliest = null, latest = null;
+      if (allTimestamps.length > 0) {
+          earliest = new Date(Math.min(...allTimestamps.map(d => d.getTime())));
+          latest = new Date(Math.max(...allTimestamps.map(d => d.getTime())));
+      }
       
-      const earliest = allTimestamps.length > 0 ? new Date(Math.min(...allTimestamps)) : null;
-      const latest = allTimestamps.length > 0 ? new Date(Math.max(...allTimestamps)) : null;
+      // Legend'ı mevcut verilere göre dinamik olarak oluştur
+      const newLegendSelected: Record<string, boolean> = {
+        'Power (kW)': true,
+        'Expected Power (kW)': true,
+        'Wind Speed (m/s)': true,
+      };
+
+      // Critical Events seçeneğini sadece hem log hem de power verisi varsa ekle
+      if (logs.length > 0 && power.length > 0) {
+        newLegendSelected['Critical Events'] = true;
+      }
 
       set({
-        logEvents: parsedData.logs,
-        powerCurveData: parsedData.power,
+        logEvents: logs,
+        powerCurveData: power,
         stagedFiles: [],
         dateRange: { start: earliest, end: latest },
-        metrics: initialMetrics,
+        metrics: { availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 },
+        legendSelected: newLegendSelected, // Dinamik olarak oluşturulan legend'ı ayarla
       });
+
       return { success: true, message: "Dosyalar başarıyla işlendi." };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu.";
-      console.error("processStagedFiles Error:", error);
-      return { success: false, message };
+      console.error("Dosya işleme hatası:", error);
+      return { success: false, message: error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu." };
     }
   },
+
   setDateRange: (range) => set({ dateRange: range }),
   setMetrics: (newMetrics) => set({ metrics: newMetrics }),
   setLegendSelected: (selected) => set({ legendSelected: selected }),
