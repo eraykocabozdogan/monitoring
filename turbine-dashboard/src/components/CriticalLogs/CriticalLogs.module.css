@@ -1,15 +1,10 @@
-/* src/components/CriticalLogs/CriticalLogs.module.css */
 .logsCard {
-  /* Kartın temel stilini koruyoruz */
-  background-color: white;
+  background-color: var(--color-background-secondary);
   border-radius: 8px;
   padding: 24px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  color: #333;
+  box-shadow: var(--shadow-main);
+  color: var(--color-text-primary);
   width: 100%;
-
-  /* Kartı, içindekileri dikey sıralayan esnek bir kutu yapıyoruz.
-     Bu, 'align-items: stretch' ile tam uyumlu çalışır. */
   display: flex;
   flex-direction: column;
 }
@@ -17,18 +12,15 @@
 .title {
   margin-top: 0;
   margin-bottom: 16px;
-  /* Başlığın dikeyde esnemesini engeller, sabit kalmasını sağlar */
   flex-shrink: 0; 
 }
 
 .tableContainer {
-  /* Bu konteyner, kartın içinde kalan tüm dikey boşluğu doldurur */
-  flex-grow: 1; 
-  /* Eğer loglar çok uzarsa, sadece tabloya kaydırma çubuğu ekler */
-  overflow-y: auto; 
+  flex-grow: 1;
+  overflow-y: auto;
   min-height: 200px;
   max-height: 620px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
 }
 
@@ -40,11 +32,11 @@
 .table th, .table td {
   padding: 12px 8px;
   text-align: left;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .table th {
-  background-color: #f8f9fa;
+  background-color: var(--color-background-hover);
   font-weight: 600;
   position: sticky;
   top: 0;
@@ -52,5 +44,5 @@
 }
 
 .table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: var(--color-background-hover);
 }

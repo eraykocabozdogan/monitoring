@@ -1,33 +1,34 @@
 .container {
-  background: white;
+  background: var(--color-background-secondary);
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-main);
   display: flex;
   flex-direction: column;
   gap: 16px;
+  color: var(--color-text-primary);
 }
 
 .title {
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .uploadArea {
-  border: 2px dashed #d1d5db;
+  border: 2px dashed var(--color-border);
   border-radius: 6px;
   padding: 20px 16px;
   text-align: center;
-  background-color: #f9fafb;
+  background-color: var(--color-background-main);
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
 .uploadArea:hover {
-  border-color: #3b82f6;
-  background-color: #eff6ff;
+  border-color: var(--color-brand);
+  background-color: var(--color-background-hover);
 }
 
 .uploadInput {
@@ -35,7 +36,7 @@
 }
 
 .uploadButton {
-  background-color: #3b82f6;
+  background-color: var(--color-brand);
   color: white;
   border: none;
   padding: 8px 16px;
@@ -48,24 +49,19 @@
 }
 
 .uploadButton:hover {
-  background-color: #2563eb;
+  filter: brightness(1.1);
 }
 
 .uploadText {
-  color: #6b7280;
+  color: var(--color-text-secondary);
   font-size: 12px;
   margin: 0;
-}
-
-/* Yeni Stiller */
-.fileList {
-  margin-top: 8px;
 }
 
 .fileListTitle {
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--color-text-primary);
   margin: 0 0 8px 0;
 }
 
@@ -83,7 +79,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background-color: #f3f4f6;
+  background-color: var(--color-background-hover);
   border-radius: 4px;
   font-size: 13px;
 }
@@ -91,7 +87,7 @@
 .removeButton {
   background: transparent;
   border: none;
-  color: #9ca3af;
+  color: var(--color-text-secondary);
   font-size: 20px;
   cursor: pointer;
   line-height: 1;
@@ -120,24 +116,6 @@
 
 .processButton:disabled {
   background-color: #d1d5db;
+  color: #6b7280;
   cursor: not-allowed;
-}
-
-
-.fileName {
-  padding: 8px 12px;
-  background-color: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  border-radius: 4px;
-  color: #065f46;
-  font-size: 13px;
-}
-
-.error {
-  padding: 8px 12px;
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 4px;
-  color: #991b1b;
-  font-size: 13px;
 }

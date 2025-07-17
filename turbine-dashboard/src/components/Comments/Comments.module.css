@@ -1,0 +1,109 @@
+.container {
+  background-color: var(--color-background-secondary);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: var(--shadow-main);
+  color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.title {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.addCommentSection {
+  margin-bottom: 24px;
+}
+
+.selectionInfo {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  background-color: var(--color-background-main);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  border: 1px solid var(--color-border);
+  min-height: 18px;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  font-family: inherit;
+  font-size: 14px;
+  margin-bottom: 12px;
+  resize: vertical;
+  min-height: 60px;
+  background-color: var(--color-background-secondary);
+  color: var(--color-text-primary);
+}
+
+.textarea:disabled {
+  background-color: var(--color-background-hover);
+  cursor: not-allowed;
+}
+
+.button {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background-color: var(--color-brand);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.button:hover {
+  filter: brightness(1.1);
+}
+
+.button:disabled {
+  background-color: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.commentList {
+  flex-grow: 1;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+}
+
+.noComments {
+  text-align: center;
+  color: var(--color-text-secondary);
+  margin-top: 20px;
+}
+
+.commentItem {
+  background-color: var(--color-background-hover);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.commentText {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+}
+
+.commentMeta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}

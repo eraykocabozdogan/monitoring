@@ -6,10 +6,11 @@
 }
 
 .section {
-  background: white;
+  background: var(--color-background-secondary); /* Değiştirildi */
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-main); /* Değiştirildi */
   overflow: hidden;
+  color: var(--color-text-primary); /* Eklendi */
 }
 
 .kpiGrid {
@@ -22,7 +23,7 @@
 .sectionTitle {
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text-primary); /* Değiştirildi */
   margin: 0 0 16px 0;
   padding: 20px 20px 0 20px;
 }

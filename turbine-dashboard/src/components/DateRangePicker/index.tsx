@@ -1,15 +1,13 @@
-// src/components/DateRangePicker/index.tsx
 import React, { memo } from 'react';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useAppStore } from '../../store/useAppStore.js';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, createTheme, ThemeProvider } from '@mui/material';
 
 const DateRangePicker: React.FC = () => {
-  const { dateRange, setDateRange } = useAppStore();
+  const { dateRange, setDateRange, theme } = useAppStore();
 
-  // dateRange null ise, DatePicker'lar null değer almalı
   const startDate = dateRange?.start ?? null;
   const endDate = dateRange?.end ?? null;
 
@@ -25,26 +23,65 @@ const DateRangePicker: React.FC = () => {
     }
   };
 
+  const muiTheme = createTheme({
+    palette: {
+      mode: theme,
+      ...(theme === 'dark' && {
+        background: {
+          paper: '#1f2937',
+        },
+      }),
+    },
+  });
+
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 2, backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-        <Typography variant="subtitle1" sx={{ color: '#333', fontWeight: 'bold' }}>
+    <ThemeProvider theme={muiTheme}>
+      <Box sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          p: 2,
+          bgcolor: 'background.paper',
+          borderRadius: '8px',
+          boxShadow: 'var(--shadow-main)'
+        }}>
+        <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 'bold' }}>
           Select Date Range
         </Typography>
-        <DatePicker
-          label="Start Date"
-          value={startDate}
-          onChange={handleStartDateChange}
-          disabled={!startDate} // Veri yokken devre dışı
-        />
-        <DatePicker
-          label="End Date"
-          value={endDate}
-          onChange={handleEndDateChange}
-          disabled={!endDate} // Veri yokken devre dışı
-        />
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Start Date"
+            value={startDate}
+            onChange={handleStartDateChange}
+            disabled={!startDate}
+            slotProps={{
+              textField: {
+                sx: {
+                  '.MuiOutlinedInput-root': {
+                    backgroundColor: 'var(--color-background-hover)',
+                  },
+                },
+              },
+            }}
+          />
+          <DatePicker
+            label="End Date"
+            value={endDate}
+            onChange={handleEndDateChange}
+            disabled={!endDate}
+            slotProps={{
+              textField: {
+                sx: {
+                  '.MuiOutlinedInput-root': {
+                    backgroundColor: 'var(--color-background-hover)',
+                  },
+                },
+              },
+            }}
+          />
+        </LocalizationProvider>
       </Box>
-    </LocalizationProvider>
+    </ThemeProvider>
   );
 };
 

@@ -1,0 +1,22 @@
+.themeButton {
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.themeButton:hover {
+  background: var(--color-background-hover);
+  border-color: var(--color-brand);
+}
+
+.themeButton svg {
+  transition: all 0.3s ease;
+}

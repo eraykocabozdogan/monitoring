@@ -1,20 +1,20 @@
-.card {
-  background: #f8fafc;
+.kpiCard { /* .card sınıfı .kpiCard olarak düzeltildi (App.tsx'deki kullanıma göre) */
+  background: var(--color-background-hover);
   padding: 16px;
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   text-align: center;
   transition: all 0.3s ease;
 }
 
-.card:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+.kpiCard:hover {
+  background: var(--color-background-main);
+  border-color: var(--color-brand);
 }
 
 .title {
   font-size: 12px;
-  color: #64748b;
+  color: var(--color-text-secondary);
   margin: 0 0 8px 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -24,19 +24,12 @@
 .value {
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--color-text-primary);
   margin: 0;
   line-height: 1.2;
 }
 
-.value.positive {
-  color: #059669;
-}
-
-.value.warning {
-  color: #d97706;
-}
-
-.value.negative {
-  color: #dc2626;
+.unit {
+    font-size: 16px;
+    color: var(--color-text-secondary);
 }

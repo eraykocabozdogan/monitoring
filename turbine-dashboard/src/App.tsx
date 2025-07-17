@@ -9,14 +9,19 @@ import DashboardLayout from './components/DashboardLayout';
 import styles from './components/DashboardLayout/DashboardLayout.module.css';
 import sidebarStyles from './components/Sidebar/Sidebar.module.css';
 import CriticalLogs from './components/CriticalLogs';
-import Sidebar from './components/Sidebar';
 import KpiCard from './components/KpiCard';
 import DateRangePicker from './components/DateRangePicker';
+import Comments from './components/Comments';
 
 function App() {
-  const { setMetrics, metrics, logEvents, powerCurveData, dateRange } = useAppStore();
+  const { setMetrics, metrics, logEvents, powerCurveData, dateRange, theme } = useAppStore();
   
   const filteredLogsForTable = useFilteredLogData();
+
+  useEffect(() => {
+    // Tema değiştikçe body etiketine data-theme attribute'ünü ekle/güncelle
+    document.body.dataset.theme = theme;
+  }, [theme]);
 
   useEffect(() => {
     if (logEvents.length > 0 && powerCurveData.length > 0 && dateRange.start && dateRange.end) {
@@ -30,21 +35,31 @@ function App() {
   return (
     <DashboardLayout>
       <DataChart />
+
       <div className={styles.bottomSection}>
-        <CriticalLogs logs={filteredLogsForTable} />
-        <Sidebar>
-          <CsvUploader />
-          <DateRangePicker />
-          <div className={sidebarStyles.section}>
-            <div className={sidebarStyles.kpiGrid}>
-              <KpiCard title="Operational Availability (Ao)" value={metrics.operationalAvailability} unit="%" />
-              <KpiCard title="Technical Availability (At)" value={metrics.technicalAvailability} unit="%" />
-              <KpiCard title="MTBF" value={metrics.mtbf} unit="hours" />
-              <KpiCard title="MTTR" value={metrics.mttr} unit="hours" />
-              <KpiCard title="Reliability (R)" value={metrics.reliabilityR} unit="%" />
+        {/* Sol Sütun İçeriği */}
+        <div>
+          <div className={styles.topControlsSection}>
+            <CsvUploader />
+            <DateRangePicker />
+            <div className={sidebarStyles.section}>
+              <div className={sidebarStyles.kpiGrid}>
+                <KpiCard title="Operational Availability (Ao)" value={metrics.operationalAvailability} unit="%" />
+                <KpiCard title="Technical Availability (At)" value={metrics.technicalAvailability} unit="%" />
+                <KpiCard title="MTBF" value={metrics.mtbf} unit="hours" />
+                <KpiCard title="MTTR" value={metrics.mttr} unit="hours" />
+                <KpiCard title="Reliability (R)" value={metrics.reliabilityR} unit="%" />
+              </div>
             </div>
           </div>
-        </Sidebar>
+          
+          <CriticalLogs logs={filteredLogsForTable} />
+        </div>
+
+        {/* Sağ Sütun İçeriği */}
+        <div>
+          <Comments />
+        </div>
       </div>
     </DashboardLayout>
   );

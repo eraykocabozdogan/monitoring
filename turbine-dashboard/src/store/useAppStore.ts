@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import type { TurbineEvent, PowerCurvePoint, Metrics } from '../types/index.js';
+import type { TurbineEvent, PowerCurvePoint, Metrics, Comment, CommentSelection } from '../types/index.js';
 import { parseCsvFiles } from '../utils/csvParser.js';
 
-// ... (AppState arayüzünde değişiklik yok)
+type Theme = 'light' | 'dark';
+
 interface AppState {
   stagedFiles: File[];
   logEvents: TurbineEvent[];
@@ -13,6 +14,9 @@ interface AppState {
   };
   metrics: Metrics;
   legendSelected: Record<string, boolean>;
+  comments: Comment[];
+  newCommentSelection: CommentSelection | null;
+  theme: Theme;
 
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
@@ -20,6 +24,9 @@ interface AppState {
   setDateRange: (range: { start: Date; end: Date }) => void;
   setMetrics: (newMetrics: Metrics) => void;
   setLegendSelected: (selected: Record<string, boolean>) => void;
+  addComment: (comment: Comment) => void;
+  setNewCommentSelection: (selection: CommentSelection | null) => void;
+  toggleTheme: () => void;
 }
 
 
@@ -28,10 +35,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   logEvents: [],
   powerCurveData: [],
   dateRange: { start: null, end: null },
-  metrics: { availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 },
+  metrics: { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 },
   legendSelected: { 'Power (kW)': true, 'Expected Power (kW)': true, 'Wind Speed (m/s)': true },
+  comments: [],
+  newCommentSelection: null,
+  theme: 'light', // Varsayılan tema
 
-  // ... (addStagedFile ve removeStagedFile'da değişiklik yok)
   addStagedFile: (file) => {
     if (!get().stagedFiles.some(f => f.name === file.name)) {
       set(state => ({ stagedFiles: [...state.stagedFiles, file] }));
@@ -45,9 +54,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   processStagedFiles: async () => {
+    // ... (bu fonksiyonun içeriğinde değişiklik yok)
     const { stagedFiles } = get();
     if (stagedFiles.length === 0) {
-      return { success: false, message: "İşlenecek dosya seçilmedi." };
+      return { success: false, message: "No files selected for processing." };
     }
     try {
       const parsedData = await parseCsvFiles(stagedFiles);
@@ -56,7 +66,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (logs.length === 0 && power.length === 0) {
         return { 
           success: false, 
-          message: "Dosya formatları tanınamadı veya dosyalar boş. Lütfen geçerli bir Power Curve veya Event Log dosyası yükleyin." 
+          message: "Could not recognize file formats or files are empty. Please upload a valid Power Curve or Event Log file."
         };
       }
       
@@ -71,14 +81,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           latest = new Date(Math.max(...allTimestamps.map(d => d.getTime())));
       }
       
-      // Legend'ı mevcut verilere göre dinamik olarak oluştur
       const newLegendSelected: Record<string, boolean> = {
         'Power (kW)': true,
         'Expected Power (kW)': true,
         'Wind Speed (m/s)': true,
       };
 
-      // Critical Events seçeneğini sadece hem log hem de power verisi varsa ekle
       if (logs.length > 0 && power.length > 0) {
         newLegendSelected['Critical Events'] = true;
       }
@@ -88,18 +96,23 @@ export const useAppStore = create<AppState>((set, get) => ({
         powerCurveData: power,
         stagedFiles: [],
         dateRange: { start: earliest, end: latest },
-        metrics: { availability: 0, mtbf: 0, mttr: 0, reliability_R100h: 0 },
-        legendSelected: newLegendSelected, // Dinamik olarak oluşturulan legend'ı ayarla
+        metrics: { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 },
+        legendSelected: newLegendSelected,
+        comments: [],
+        newCommentSelection: null,
       });
 
-      return { success: true, message: "Dosyalar başarıyla işlendi." };
+      return { success: true, message: "Files processed successfully." };
     } catch (error) {
-      console.error("Dosya işleme hatası:", error);
-      return { success: false, message: error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu." };
+      console.error("File processing error:", error);
+      return { success: false, message: error instanceof Error ? error.message : "An unknown error occurred." };
     }
   },
 
   setDateRange: (range) => set({ dateRange: range }),
   setMetrics: (newMetrics) => set({ metrics: newMetrics }),
   setLegendSelected: (selected) => set({ legendSelected: selected }),
+  addComment: (comment) => set(state => ({ comments: [...state.comments, comment] })),
+  setNewCommentSelection: (selection) => set({ newCommentSelection: selection }),
+  toggleTheme: () => set(state => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
 }));

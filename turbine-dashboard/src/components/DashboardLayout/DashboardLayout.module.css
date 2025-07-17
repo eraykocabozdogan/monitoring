@@ -3,21 +3,24 @@
   flex-direction: column;
   width: 100%;
   min-height: 100vh;
-  background-color: #f0f2f5;
+  background-color: var(--color-background-main);
   gap: 16px;
   padding: 16px;
 }
 
 .header {
-  background: white;
+  background: var(--color-background-secondary);
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-main);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .title {
   margin: 0;
-  color: #1f2937;
+  color: var(--color-text-primary);
   font-size: 24px;
   font-weight: 600;
 }
@@ -27,6 +30,19 @@
   grid-template-columns: 3fr 1fr;
   gap: 16px;
   width: 100%;
+}
+
+.topControlsSection {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 1200px) {
+  .topControlsSection {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1024px) {

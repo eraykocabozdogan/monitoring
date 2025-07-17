@@ -23,3 +23,16 @@ export type Metrics = {
   mttr: number;
   reliabilityR: number; // Renamed for consistency
 };
+
+// Yorumlar için yeni tipler
+export interface CommentSelection {
+  start: number; // timestamp
+  end?: number; // timestamp (opsiyonel, aralık seçimi için)
+}
+
+export interface Comment {
+  id: number;
+  text: string;
+  selection: CommentSelection;
+  createdAt: Date;
+}
