@@ -32,15 +32,34 @@
   width: 100%;
 }
 
+/* Ana kontrol bölümü artık dikey bir flex konteyneri */
 .topControlsSection {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   margin-bottom: 16px;
 }
 
+/* Yeni KPI satırı stili */
+.kpiRow {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr); /* 5 KPI için 5 eşit sütun */
+  gap: 16px;
+}
+
+/* Yeni kontrol satırı stili */
+.controlsRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 bileşen için 2 eşit sütun */
+  gap: 16px;
+}
+
 @media (max-width: 1200px) {
-  .topControlsSection {
+  /* Dar ekranlarda her iki satır da tek sütunlu olur */
+  .kpiRow {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Daha esnek bir yapı */
+  }
+  .controlsRow {
     grid-template-columns: 1fr;
   }
 }

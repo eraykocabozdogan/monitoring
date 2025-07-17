@@ -20,8 +20,8 @@ const DataChart: React.FC = () => {
   const chartRef = useRef<any>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // ... (useMemo ve useCallback hook'ları değişmedi)
   const chartEvents = useMemo(() => {
+    // ... (içerik değişmedi)
     if (powerCurveData.length === 0 || logEvents.length === 0) return [];
     const activeFilters = ['fault', 'safety critical fault'];
     return logEvents
@@ -37,20 +37,28 @@ const DataChart: React.FC = () => {
       });
   }, [logEvents, powerCurveData]);
 
+  // ECharts serilerini oluştur
   const series = useMemo(() => {
     const baseSeries = [
-      { name: 'Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 1 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) },
-      { name: 'Expected Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 1 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) },
-      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, lineStyle: { width: 1 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
+      // Çizgi kalınlıkları azaltıldı
+      { name: 'Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 0.75 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) },
+      { name: 'Expected Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 0.75 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) },
+      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, lineStyle: { width: 0.75 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
     ];
     if (chartEvents.length > 0) {
       baseSeries.push({
-        name: 'Critical Events', type: 'scatter', symbolSize: 8, itemStyle: { color: '#ef4444' }, data: chartEvents, zlevel: 10,
+        name: 'Critical Events',
+        type: 'scatter',
+        symbolSize: 8,
+        itemStyle: { color: '#ef4444' },
+        data: chartEvents,
+        zlevel: 10,
       });
     }
     return baseSeries;
   }, [powerCurveData, chartEvents]);
 
+  // ... (kalan hook'lar ve fonksiyonlar değişmedi)
   const formatTooltip = useCallback((params: any) => {
     const firstParam = params[0];
     if (!firstParam) return '';
@@ -146,6 +154,7 @@ const DataChart: React.FC = () => {
     }
   }, [dateRange, legendSelected, series, formatTooltip, theme]);
 
+
   if (powerCurveData.length === 0) {
     return <div className={`${styles.container} ${styles.emptyState}`}>Please upload a Power Curve file to see the chart.</div>;
   }
@@ -156,7 +165,7 @@ const DataChart: React.FC = () => {
         key={theme}
         ref={chartRef}
         option={option}
-        style={{ height: '100%', width: '100%' }} // Yüksekliği %100 yapıldı
+        style={{ height: '100%', width: '100%' }}
         onEvents={onEvents}
         notMerge={true}
         lazyUpdate={true}
