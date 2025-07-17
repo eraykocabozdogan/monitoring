@@ -1,7 +1,7 @@
 export interface TurbineEvent {
   timestamp: Date | null;
   status: string;
-  name: string; // "Name" alanı eklendi
+  name: string;
   description: string;
   category: string;
   eventType: string;
@@ -15,9 +15,11 @@ export interface PowerCurvePoint {
   refPower: number;
 }
 
+// Updated metrics to be more specific
 export type Metrics = {
-  availability: number;
+  operationalAvailability: number;
+  technicalAvailability: number;
   mtbf: number;
   mttr: number;
-  reliability_R100h: number;
+  reliabilityR: number; // Renamed for consistency
 };
