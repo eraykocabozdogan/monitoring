@@ -13,23 +13,35 @@ import Sidebar from './components/Sidebar';
 import KpiCard from './components/KpiCard';
 import DateRangePicker from './components/DateRangePicker';
 
+const initialMetrics = {
+  operationalAvailability: 0,
+  technicalAvailability: 0,
+  mtbf: 0,
+  mttr: 0,
+  reliabilityR: 0,
+};
+
 function App() {
   const { setMetrics, metrics, logEvents, powerCurveData, dateRange } = useAppStore();
   
   const filteredLogsForTable = useFilteredLogData();
 
   useEffect(() => {
-    if (logEvents.length > 0 && powerCurveData.length > 0 && dateRange.start && dateRange.end) {
+    // Düzeltme: Sadece gerekli veriler mevcut olduğunda hesaplama yap
+    if (powerCurveData.length > 0 && dateRange.start && dateRange.end) {
       const newMetrics = calculateMetrics(logEvents, powerCurveData, dateRange);
       setMetrics(newMetrics);
     } else {
-      setMetrics({ operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 });
+      // Veri yoksa metrikleri sıfırla
+      setMetrics(initialMetrics);
     }
+  // Düzeltme: Bağımlılık dizisi artık `logEvents`'i de içeriyor.
   }, [logEvents, powerCurveData, dateRange, setMetrics]);
 
   return (
     <DashboardLayout>
-      <DataChart />
+      {/* Grafik artık veri geldiğinde yüklenecek */}
+      <DataChart /> 
       <div className={styles.bottomSection}>
         <CriticalLogs logs={filteredLogsForTable} />
         <Sidebar>
