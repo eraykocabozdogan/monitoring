@@ -47,17 +47,17 @@ function App() {
               <KpiCard title="MTBF" value={metrics.mtbf} unit="hours" />
               <KpiCard title="MTTR" value={metrics.mttr} unit="hours" />
               <KpiCard title="Reliability (R)" value={metrics.reliabilityR} unit="%" />
+              <div className={styles.buttonContainer}>
+                <button
+                    onClick={() => setShowControls(!showControls)}
+                    className={styles.toggleButton}
+                    title={showControls ? "Hide Controls" : "Show Controls"}
+                >
+                  <span className={styles.buttonText}>Upload & Range</span>
+                  <span className={styles.buttonArrow}>{showControls ? '▲' : '▼'}</span>
+                </button>
+              </div>
             </div>
-
-            {/* Kontrol Butonu */}
-            <button
-                onClick={() => setShowControls(!showControls)}
-                className={styles.toggleButton}
-                title={showControls ? "Hide Controls" : "Show Controls"}
-            >
-                {showControls ? 'Hide' : 'Show'} Data Upload & Select Date Range
-            </button>
-
 
             {/* Alt Sıra: Diğer Kontroller (Gizlenebilir) */}
             {showControls && (

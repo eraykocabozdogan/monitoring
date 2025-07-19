@@ -40,38 +40,59 @@
   margin-bottom: 16px;
 }
 
-/* KPI satırı artık tek bir kutu gibi görünecek */
+/* KPI satırı güncellendi */
 .kpiRow {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* 5 KPI kartı + 1 buton alanı */
+  grid-template-columns: repeat(5, 1fr) auto;
   gap: 16px;
   background-color: var(--color-background-secondary);
   padding: 20px;
   border-radius: 8px;
   box-shadow: var(--shadow-main);
-  align-items: stretch; /* Kartların aynı yükseklikte olmasını sağlar */
+  align-items: stretch; /* Kartların ve butonun aynı yükseklikte olmasını sağlar */
 }
 
-/* Gizle/Göster butonu için stil */
+/* Butonu sarmalayan ve hizalayan konteyner */
+.buttonContainer {
+  display: flex;
+  align-items: center; /* Butonu dikeyde ortala */
+  justify-content: flex-end;
+}
+
+/* Gizle/Göster butonu için stil güncellendi */
 .toggleButton {
-  background: var(--color-background-secondary);
+  background: var(--color-background-hover);
   border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
-  width: 100%; /* Genişliği tam yap */
-  padding: 10px 16px;
+  color: var(--color-text-primary);
+  padding: 8px 16px;
   border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  text-align: center;
+  display: flex;
+  flex-direction: column; /* Yazı ve oku alt alta hizala */
+  align-items: center;
+  justify-content: center;
+  min-width: 100px; /* Butonun çok daralmasını engelle */
+  /* height: 100% kaldırıldı, boyut padding ile kontrol ediliyor */
 }
 
 .toggleButton:hover {
-  background: var(--color-background-hover);
+  background: var(--color-background-main);
   border-color: var(--color-brand);
-  color: var(--color-text-primary);
 }
+
+.buttonText {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.buttonArrow {
+  font-size: 12px;
+  margin-top: 4px; /* Ok ile yazı arasına boşluk koy */
+}
+
 
 /* Kontrol satırı, iki bileşeni yan yana hizalar */
 .controlsRow {
@@ -80,10 +101,13 @@
   gap: 16px;
 }
 
-
 @media (max-width: 1200px) {
   .kpiRow {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+  .buttonContainer {
+    grid-column: -1; /* En sona atar */
+    justify-self: end;
   }
   .controlsRow {
     grid-template-columns: 1fr;
