@@ -49,6 +49,28 @@
   padding: 20px;
   border-radius: 8px;
   box-shadow: var(--shadow-main);
+  align-items: stretch; /* Kartların aynı yükseklikte olmasını sağlar */
+}
+
+/* Gizle/Göster butonu için stil */
+.toggleButton {
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  width: 100%; /* Genişliği tam yap */
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.toggleButton:hover {
+  background: var(--color-background-hover);
+  border-color: var(--color-brand);
+  color: var(--color-text-primary);
 }
 
 /* Kontrol satırı, iki bileşeni yan yana hizalar */

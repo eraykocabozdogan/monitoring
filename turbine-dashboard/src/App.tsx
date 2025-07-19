@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useFilteredLogData } from './hooks/useFilteredLogData.js';
 import { calculateMetrics } from './utils/calculations.js';
@@ -14,6 +14,7 @@ import Comments from './components/Comments';
 
 function App() {
   const { setMetrics, metrics, logEvents, powerCurveData, dateRange, theme } = useAppStore();
+  const [showControls, setShowControls] = useState(true); // Kontrollerin görünürlüğü için state
   
   const filteredLogsForTable = useFilteredLogData();
 
@@ -39,7 +40,7 @@ function App() {
         <div>
           {/* Ana Kontrol Bölümü */}
           <div className={styles.topControlsSection}>
-            {/* Üst Sıra: Tek bir bileşen olarak KPI Metrikleri */}
+            {/* Üst Sıra: KPI Metrikleri ve Kontrol Butonu */}
             <div className={styles.kpiRow}>
               <KpiCard title="Operational Availability (Ao)" value={metrics.operationalAvailability} unit="%" />
               <KpiCard title="Technical Availability (At)" value={metrics.technicalAvailability} unit="%" />
@@ -48,11 +49,23 @@ function App() {
               <KpiCard title="Reliability (R)" value={metrics.reliabilityR} unit="%" />
             </div>
 
-            {/* Alt Sıra: Diğer Kontroller */}
-            <div className={styles.controlsRow}>
-              <CsvUploader />
-              <DateRangePicker />
-            </div>
+            {/* Kontrol Butonu */}
+            <button
+                onClick={() => setShowControls(!showControls)}
+                className={styles.toggleButton}
+                title={showControls ? "Hide Controls" : "Show Controls"}
+            >
+                {showControls ? 'Hide' : 'Show'} Data Upload & Select Date Range
+            </button>
+
+
+            {/* Alt Sıra: Diğer Kontroller (Gizlenebilir) */}
+            {showControls && (
+                <div className={styles.controlsRow}>
+                    <CsvUploader />
+                    <DateRangePicker />
+                </div>
+            )}
           </div>
           
           <CriticalLogs logs={filteredLogsForTable} />
