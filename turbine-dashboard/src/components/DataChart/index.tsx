@@ -20,9 +20,17 @@ const DataChart: React.FC = () => {
   const chartRef = useRef<any>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // ECharts serilerini oluştur
+  // ECharts serilerini oluştur (Görsel İyileştirmelerle)
   const series = useMemo(() => {
-    // Olayları gruplara ayır
+    // Tema bazlı güncellenmiş renk paleti
+    const colors = {
+      power: theme === 'dark' ? '#3b82f6' : '#2563eb',          // Canlı Mavi
+      refPower: theme === 'dark' ? '#a78bfa' : '#8b5cf6',       // Eflatun
+      wind: theme === 'dark' ? '#22c55e' : '#16a34a',           // Yeşil
+      fault: theme === 'dark' ? '#facc15' : '#eab308',          // Altın Sarısı
+      criticalFault: theme === 'dark' ? '#f43f5e' : '#e11d48'   // Gül Kırmızısı
+    };
+
     const faultEvents = logEvents
       .filter(log => log.eventType?.toLowerCase().trim() === 'fault')
       .map(log => {
@@ -47,58 +55,94 @@ const DataChart: React.FC = () => {
         };
       });
 
-    // Serileri her zaman oluştur, verisi olmasa bile. Bu, legend'in her zaman görünmesini sağlar.
     const allSeries = [
-      { name: 'Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 0.75 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) },
-      { name: 'Expected Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 0.75 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) },
-      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, lineStyle: { width: 0.75 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
+      { 
+        name: 'Power (kW)', 
+        type: 'line', 
+        showSymbol: false, 
+        // Değişiklik: Kalınlık ve opaklık ayarlandı
+        lineStyle: { width: 2, opacity: 0.66, color: colors.power },
+        data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) 
+      },
+      { 
+        name: 'Expected Power (kW)', 
+        type: 'line', 
+        showSymbol: false, 
+        // Değişiklik: Kalınlık ve opaklık ayarlandı
+        lineStyle: { width: 2, opacity: 0.66, color: colors.refPower }, 
+        data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) 
+      },
+      { 
+        name: 'Wind Speed (m/s)', 
+        type: 'line', 
+        yAxisIndex: 1, 
+        showSymbol: false, 
+        // Değişiklik: Kalınlık ve opaklık ayarlandı
+        lineStyle: { width: 2, opacity: 0.66, color: colors.wind },
+        data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) 
+      },
       {
         name: 'Fault',
         type: 'scatter',
-        symbolSize: 8,
-        itemStyle: { color: '#f97316' }, // Turuncu
+        symbol: 'triangle',
+        symbolSize: 9,
+        itemStyle: { color: colors.fault },
         data: faultEvents,
         zlevel: 10,
       },
       {
         name: 'Safety Critical Fault',
         type: 'scatter',
-        symbolSize: 10, // Daha belirgin olması için boyutu biraz artırıldı
-        symbol: 'triangle', // Şekli değiştirildi
-        itemStyle: { color: '#ef4444' }, // Kırmızı
+        symbol: 'diamond',
+        symbolSize: 10,
+        itemStyle: { color: colors.criticalFault },
         data: safetyCriticalFaultEvents,
-        zlevel: 11, // Diğerinin üzerinde olması için
+        zlevel: 11,
       }
     ];
 
     return allSeries;
-  }, [powerCurveData, logEvents]);
+  }, [powerCurveData, logEvents, theme]);
 
   // ... (kalan hook'lar ve fonksiyonlar değişmedi)
   const formatTooltip = useCallback((params: any) => {
+    const tooltipTheme = {
+      backgroundColor: theme === 'dark' ? 'rgba(20, 20, 30, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+      textColor: theme === 'dark' ? '#f1f5f9' : '#1e293b',
+      borderColor: theme === 'dark' ? '#334155' : '#e2e8f0',
+    };
+
     const firstParam = params[0];
     if (!firstParam) return '';
+    
+    const baseStyle = `font-family: sans-serif; font-size: 14px; color: ${tooltipTheme.textColor}; border-radius: 6px; border: 1px solid ${tooltipTheme.borderColor}; background-color: ${tooltipTheme.backgroundColor}; padding: 10px; min-width: 250px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);`;
+    const hrStyle = `border-color: ${tooltipTheme.borderColor}; margin: 6px 0;`;
 
     if (firstParam.seriesType === 'scatter') {
       const event = firstParam.data.rawData as TurbineEvent;
-      return `<div style="font-family: sans-serif; font-size: 14px; color: #333; min-width: 250px;"><strong>Event: ${event.eventType}</strong><hr style="border-color: #eee; margin: 4px 0;"><strong>Timestamp:</strong> ${format(event.timestamp!, 'yyyy-MM-dd HH:mm:ss')}<br><strong>Description:</strong> ${event.description}</div>`;
+      return `<div style="${baseStyle}"><strong>Event: ${event.eventType}</strong><hr style="${hrStyle}"><strong>Timestamp:</strong> ${format(event.timestamp!, 'yyyy-MM-dd HH:mm:ss')}<br><strong>Description:</strong> ${event.description}</div>`;
     }
+
     const hoverTime = new Date(firstParam.axisValue);
     const startTime = subMinutes(hoverTime, 5);
     const endTime = addMinutes(hoverTime, 5);
+    
     const eventsInWindow = logEvents.filter(e => {
       if (!e.timestamp) return false;
       const eventTime = e.timestamp.getTime();
       return eventTime >= startTime.getTime() && eventTime <= endTime.getTime();
     });
+
     let eventSummary = '<strong>No critical events in this 10-min window.</strong>';
     if (eventsInWindow.length > 0) {
       eventSummary = eventsInWindow.map(e => `<div style="margin-top: 4px;"><strong>${format(e.timestamp!, 'HH:mm:ss')} - ${e.eventType}:</strong><br>${e.description}</div>`).join('');
     }
+
     const powerPoint = powerCurveData[firstParam.dataIndex];
     if (!powerPoint) return '';
-    return `<div style="font-family: sans-serif; font-size: 14px; color: #333; min-width: 300px;"><strong>${format(hoverTime, 'yyyy-MM-dd HH:mm:ss')}</strong><br>Power: ${powerPoint.power.toFixed(2)} kW | Wind: ${powerPoint.windSpeed.toFixed(2)} m/s<hr style="border-color: #eee; margin: 6px 0;">${eventSummary}</div>`;
-  }, [logEvents, powerCurveData]);
+    
+    return `<div style="${baseStyle}"><strong>${format(hoverTime, 'yyyy-MM-dd HH:mm:ss')}</strong><br>Power: ${powerPoint.power.toFixed(2)} kW | Wind: ${powerPoint.windSpeed.toFixed(2)} m/s<hr style="${hrStyle}">${eventSummary}</div>`;
+  }, [logEvents, powerCurveData, theme]);
 
   const handleDataZoom = useCallback(() => {
     if (debounceTimer.current) {
@@ -153,7 +197,15 @@ const DataChart: React.FC = () => {
     const textColor = theme === 'dark' ? '#f9fafb' : '#1f2937';
     const axisLineColor = theme === 'dark' ? '#4b5563' : '#e5e7eb';
     return {
-      tooltip: { trigger: 'axis', formatter: formatTooltip, axisPointer: { type: 'cross', animation: false, label: { backgroundColor: '#505765' } } },
+      tooltip: { 
+        trigger: 'axis', 
+        formatter: formatTooltip,
+        axisPointer: { type: 'cross', animation: false, label: { backgroundColor: '#505765' } },
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
+        textStyle: { color: textColor },
+        extraCssText: 'box-shadow: none;'
+      },
       legend: { data: Object.keys(legendSelected), selected: legendSelected, textStyle: { color: textColor } },
       grid: { left: '5%', right: '5%', bottom: '15%', containLabel: true },
       xAxis: { type: 'time', axisLine: { lineStyle: { color: axisLineColor } }, axisLabel: { color: textColor } },
