@@ -20,15 +20,15 @@ const DataChart: React.FC = () => {
   const chartRef = useRef<any>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // ECharts serilerini oluştur (Görsel İyileştirmelerle)
+  // ECharts serilerini oluştur (Nihai Görsel Düzenleme)
   const series = useMemo(() => {
-    // Tema bazlı güncellenmiş renk paleti
+    // Profesyonel ve uyumlu renk paleti
     const colors = {
-      power: theme === 'dark' ? '#3b82f6' : '#2563eb',          // Canlı Mavi
-      refPower: theme === 'dark' ? '#a78bfa' : '#8b5cf6',       // Eflatun
-      wind: theme === 'dark' ? '#22c55e' : '#16a34a',           // Yeşil
-      fault: theme === 'dark' ? '#facc15' : '#eab308',          // Altın Sarısı
-      criticalFault: theme === 'dark' ? '#f43f5e' : '#e11d48'   // Gül Kırmızısı
+      power: theme === 'dark' ? '#3b82f6' : '#2563eb',      // Güçlü Mavi
+      wind: theme === 'dark' ? '#22c55e' : '#16a34a',       // Canlı Yeşil
+      refPower: theme === 'dark' ? '#6b7280' : '#9ca3af',   // Referans için Nötr Gri
+      fault: '#f97316',                                    // Uyarı için Turuncu
+      criticalFault: '#dc2626'                             // Kritik için Canlı Kırmızı
     };
 
     const faultEvents = logEvents
@@ -60,26 +60,26 @@ const DataChart: React.FC = () => {
         name: 'Power (kW)', 
         type: 'line', 
         showSymbol: false, 
-        // Değişiklik: Kalınlık ve opaklık ayarlandı
-        lineStyle: { width: 2, opacity: 0.66, color: colors.power },
+        lineStyle: { width: 1.5, color: colors.power },
+        z: 3, // En önde çiz
         data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) 
+      },
+       { 
+        name: 'Wind Speed (m/s)', 
+        type: 'line', 
+        yAxisIndex: 1, 
+        showSymbol: false, 
+        lineStyle: { width: 1.5, color: colors.wind },
+        z: 2, // Ortada çiz
+        data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) 
       },
       { 
         name: 'Expected Power (kW)', 
         type: 'line', 
         showSymbol: false, 
-        // Değişiklik: Kalınlık ve opaklık ayarlandı
-        lineStyle: { width: 2, opacity: 0.66, color: colors.refPower }, 
+        lineStyle: { width: 1, type: 'dashed', opacity: 0.8, color: colors.refPower }, 
+        z: 1, // En arkada çiz
         data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) 
-      },
-      { 
-        name: 'Wind Speed (m/s)', 
-        type: 'line', 
-        yAxisIndex: 1, 
-        showSymbol: false, 
-        // Değişiklik: Kalınlık ve opaklık ayarlandı
-        lineStyle: { width: 2, opacity: 0.66, color: colors.wind },
-        data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) 
       },
       {
         name: 'Fault',
@@ -94,7 +94,7 @@ const DataChart: React.FC = () => {
         name: 'Safety Critical Fault',
         type: 'scatter',
         symbol: 'diamond',
-        symbolSize: 10,
+        symbolSize: 11,
         itemStyle: { color: colors.criticalFault },
         data: safetyCriticalFaultEvents,
         zlevel: 11,
