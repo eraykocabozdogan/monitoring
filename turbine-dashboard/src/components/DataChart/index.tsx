@@ -20,43 +20,59 @@ const DataChart: React.FC = () => {
   const chartRef = useRef<any>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const chartEvents = useMemo(() => {
-    // ... (içerik değişmedi)
-    if (powerCurveData.length === 0 || logEvents.length === 0) return [];
-    const activeFilters = ['fault', 'safety critical fault'];
-    return logEvents
-      .filter(log => log.eventType && activeFilters.includes(log.eventType.toLowerCase().trim()))
+  // ECharts serilerini oluştur
+  const series = useMemo(() => {
+    // Olayları gruplara ayır
+    const faultEvents = logEvents
+      .filter(log => log.eventType?.toLowerCase().trim() === 'fault')
       .map(log => {
         const closestPowerPoint = powerCurveData.reduce((prev, curr) =>
           Math.abs(curr.timestamp!.getTime() - log.timestamp!.getTime()) < Math.abs(prev.timestamp!.getTime() - log.timestamp!.getTime()) ? curr : prev
-        );
+        , powerCurveData[0] || { power: 0, timestamp: log.timestamp });
         return {
           value: [log.timestamp!.getTime(), closestPowerPoint.power],
           rawData: log,
         };
       });
-  }, [logEvents, powerCurveData]);
 
-  // ECharts serilerini oluştur
-  const series = useMemo(() => {
-    const baseSeries = [
-      // Çizgi kalınlıkları azaltıldı
+    const safetyCriticalFaultEvents = logEvents
+      .filter(log => log.eventType?.toLowerCase().trim() === 'safety critical fault')
+      .map(log => {
+        const closestPowerPoint = powerCurveData.reduce((prev, curr) =>
+          Math.abs(curr.timestamp!.getTime() - log.timestamp!.getTime()) < Math.abs(prev.timestamp!.getTime() - log.timestamp!.getTime()) ? curr : prev
+        , powerCurveData[0] || { power: 0, timestamp: log.timestamp });
+        return {
+          value: [log.timestamp!.getTime(), closestPowerPoint.power],
+          rawData: log,
+        };
+      });
+
+    // Serileri her zaman oluştur, verisi olmasa bile. Bu, legend'in her zaman görünmesini sağlar.
+    const allSeries = [
       { name: 'Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 0.75 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) },
       { name: 'Expected Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 0.75 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) },
       { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, lineStyle: { width: 0.75 }, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
-    ];
-    if (chartEvents.length > 0) {
-      baseSeries.push({
-        name: 'Critical Events',
+      {
+        name: 'Fault',
         type: 'scatter',
         symbolSize: 8,
-        itemStyle: { color: '#ef4444' },
-        data: chartEvents,
+        itemStyle: { color: '#f97316' }, // Turuncu
+        data: faultEvents,
         zlevel: 10,
-      });
-    }
-    return baseSeries;
-  }, [powerCurveData, chartEvents]);
+      },
+      {
+        name: 'Safety Critical Fault',
+        type: 'scatter',
+        symbolSize: 10, // Daha belirgin olması için boyutu biraz artırıldı
+        symbol: 'triangle', // Şekli değiştirildi
+        itemStyle: { color: '#ef4444' }, // Kırmızı
+        data: safetyCriticalFaultEvents,
+        zlevel: 11, // Diğerinin üzerinde olması için
+      }
+    ];
+
+    return allSeries;
+  }, [powerCurveData, logEvents]);
 
   // ... (kalan hook'lar ve fonksiyonlar değişmedi)
   const formatTooltip = useCallback((params: any) => {

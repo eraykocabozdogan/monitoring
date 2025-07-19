@@ -36,7 +36,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   powerCurveData: [],
   dateRange: { start: null, end: null },
   metrics: { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 },
-  legendSelected: { 'Power (kW)': true, 'Expected Power (kW)': true, 'Wind Speed (m/s)': true },
+  // "Critical Events" kaldırıldı, yerine iki yeni event eklendi
+  legendSelected: {
+    'Power (kW)': true,
+    'Expected Power (kW)': true,
+    'Wind Speed (m/s)': true,
+    'Fault': true,
+    'Safety Critical Fault': true,
+  },
   comments: [],
   newCommentSelection: null,
   theme: 'light', // Varsayılan tema
@@ -54,7 +61,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   processStagedFiles: async () => {
-    // ... (bu fonksiyonun içeriğinde değişiklik yok)
     const { stagedFiles } = get();
     if (stagedFiles.length === 0) {
       return { success: false, message: "No files selected for processing." };
@@ -81,15 +87,14 @@ export const useAppStore = create<AppState>((set, get) => ({
           latest = new Date(Math.max(...allTimestamps.map(d => d.getTime())));
       }
       
+      // Legend state'i yeni eventlere göre güncellendi
       const newLegendSelected: Record<string, boolean> = {
         'Power (kW)': true,
         'Expected Power (kW)': true,
         'Wind Speed (m/s)': true,
+        'Fault': true,
+        'Safety Critical Fault': true,
       };
-
-      if (logs.length > 0 && power.length > 0) {
-        newLegendSelected['Critical Events'] = true;
-      }
 
       set({
         logEvents: logs,
