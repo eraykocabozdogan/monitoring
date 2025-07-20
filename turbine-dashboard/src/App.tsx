@@ -11,10 +11,12 @@ import CriticalLogs from './components/CriticalLogs';
 import KpiCard from './components/KpiCard';
 import DateRangePicker from './components/DateRangePicker';
 import Comments from './components/Comments';
+import Spinner from './components/Spinner'; // Spinner'ı import et
 
 function App() {
-  const { setMetrics, metrics, logEvents, powerCurveData, dateRange, theme } = useAppStore();
-  const [showControls, setShowControls] = useState(true); // Kontrollerin görünürlüğü için state
+  // isLoading durumunu store'dan al
+  const { setMetrics, metrics, logEvents, powerCurveData, dateRange, theme, isLoading } = useAppStore();
+  const [showControls, setShowControls] = useState(true);
   
   const filteredLogsForTable = useFilteredLogData();
 
@@ -33,6 +35,9 @@ function App() {
 
   return (
     <DashboardLayout>
+      {/* isLoading true ise Spinner'ı göster */}
+      {isLoading && <Spinner />}
+
       <DataChart />
 
       <div className={styles.bottomSection}>

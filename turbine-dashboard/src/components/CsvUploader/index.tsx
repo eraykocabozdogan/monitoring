@@ -4,9 +4,8 @@ import { useAppStore } from '../../store/useAppStore.js';
 import styles from './CsvUploader.module.css';
 
 const CsvUploader = () => {
-  // Store'dan gerekli state ve action'ları al
-  const { stagedFiles, addStagedFile, removeStagedFile, processStagedFiles } = useAppStore();
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  // Store'dan isLoading ve processStagedFiles'ı al, yerel state'i kaldır.
+  const { stagedFiles, addStagedFile, removeStagedFile, processStagedFiles, isLoading } = useAppStore();
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -14,18 +13,15 @@ const CsvUploader = () => {
     if (file) {
       addStagedFile(file);
     }
-    // Input'u temizle ki aynı dosya tekrar seçilebilsin
     event.target.value = '';
   };
 
   const handleProcessClick = async () => {
-    setIsLoading(true);
     setMessage(null);
     const result = await processStagedFiles();
     if (!result.success) {
       setMessage({ text: result.message, type: 'error' });
     }
-    setIsLoading(false);
   };
   
   const handleUploadClick = () => {
@@ -45,8 +41,9 @@ const CsvUploader = () => {
           accept=".csv"
           onChange={handleFileChange}
           className={styles.uploadInput}
+          disabled={isLoading} // İşlem sırasında input'u devre dışı bırak
         />
-        <button className={styles.uploadButton} type="button">
+        <button className={styles.uploadButton} type="button" disabled={isLoading}>
           Add File
         </button>
         <p className={styles.uploadText}>
@@ -66,6 +63,7 @@ const CsvUploader = () => {
                   onClick={() => removeStagedFile(file.name)}
                   className={styles.removeButton}
                   title="Remove file"
+                  disabled={isLoading} // İşlem sırasında devre dışı bırak
                 >
                   &times;
                 </button>
