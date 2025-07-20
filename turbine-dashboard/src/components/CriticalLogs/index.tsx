@@ -1,106 +1,71 @@
-// src/components/CriticalLogs/index.tsx
-import React, { memo, useState, useMemo } from 'react';
+import React, { memo } from 'react';
 import { format } from 'date-fns';
+import { useAppStore } from '../../store/useAppStore';
 import type { TurbineEvent } from '../../types/index.js';
 import styles from './CriticalLogs.module.css';
+import FilterModal from '../FilterModal'; // Modal'ı import et
 
 interface CriticalLogsProps {
   logs: TurbineEvent[];
 }
 
 const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, boolean>>({
-    'fault': true,
-    'safety critical fault': true,
-    'information': true,
-    'warning': true,
-  });
-
-  const handleFilterChange = (eventType: string) => {
-    setSelectedFilters(prev => ({
-      ...prev,
-      [eventType]: !prev[eventType],
-    }));
-  };
-
-  const validLogs = Array.isArray(logs) ? logs : [];
-
-  const relevantEventTypes = useMemo(() => [
-    'safety critical fault',
-    'fault',
-    'information',
-    'warning'
-  ], []);
-
-  const relevantEvents = useMemo(() => validLogs.filter(log =>
-    log.eventType && relevantEventTypes.includes(log.eventType.toLowerCase().trim())
-  ), [validLogs, relevantEventTypes]);
-
-  const filteredEvents = useMemo(() => {
-    const activeFilters = Object.entries(selectedFilters)
-      .filter(([, isActive]) => isActive)
-      .map(([key]) => key);
-
-    if (activeFilters.length === 0) {
-      return [];
-    }
-
-    return relevantEvents.filter(log =>
-      log.eventType && activeFilters.includes(log.eventType.toLowerCase().trim())
-    );
-  }, [relevantEvents, selectedFilters]);
-
+  const { openFilterModal, isFilterModalOpen } = useAppStore();
 
   return (
-    <div className={styles.logsCard}>
-      <div className={styles.header}>
-        <h2 className={styles.title}>Critical Logs</h2>
-        <div className={styles.filterContainer}>
-          <span className={styles.filterTitle}>Filter by Event Type:</span>
-          {Object.keys(selectedFilters).map(filterKey => (
-            <label key={filterKey} className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={selectedFilters[filterKey]}
-                onChange={() => handleFilterChange(filterKey)}
-              />
-              {filterKey.charAt(0).toUpperCase() + filterKey.slice(1)}
-            </label>
-          ))}
+    <>
+      {/* Filtre modali, durumu store'dan okunarak gösterilir */}
+      {isFilterModalOpen && <FilterModal />}
+
+      <div className={styles.logsCard}>
+        <div className={styles.header}>
+          <h2 className={styles.title}>Critical Logs</h2>
+          {/* Yeni Filtreleme Butonu */}
+          <button onClick={openFilterModal} className={styles.filterButton}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+            <span>Filter</span>
+          </button>
+        </div>
+        <div className={styles.tableContainer}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Status</th>
+                <th>Name</th>
+                <th>Event Type</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>CCU Event</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.length > 0 ? (
+                logs.map((log, index) => (
+                  <tr key={`${log.timestamp?.getTime()}-${index}`}>
+                    <td>{log.timestamp ? format(log.timestamp, 'MMM d, yyyy') : '--'}</td>
+                    <td>{log.timestamp ? format(log.timestamp, 'HH:mm:ss') : '--'}</td>
+                    <td>{log.status || '--'}</td>
+                    <td>{log.name || '--'}</td>
+                    <td>{log.eventType || '--'}</td>
+                    <td>{log.description}</td>
+                    <td>{log.category || '--'}</td>
+                    <td>{log.ccuEvent || '--'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: 'center', color: '#888' }}>
+                    No logs to display for the selected date range and filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
-      <div className={styles.tableContainer}>
-        <table className={styles.table}>
-          <thead>
-            {/* Tablo başlığına "Name" sütunu eklendi */}
-            <tr><th>Date</th><th>Time</th><th>Status</th><th>Name</th><th>Event Type</th><th>Description</th><th>Category</th><th>CCU Event</th></tr>
-          </thead>
-          <tbody>
-            {filteredEvents.length > 0 ? (
-              filteredEvents.map((log, index) => (
-                <tr key={`${log.timestamp?.getTime()}-${index}`}>
-                  <td>{log.timestamp ? format(log.timestamp, 'MMM d, yyyy') : '--'}</td>
-                  <td>{log.timestamp ? format(log.timestamp, 'HH:mm:ss') : '--'}</td>
-                  <td>{log.status || '--'}</td>
-                  {/* Her satıra "Name" verisi eklendi */}
-                  <td>{log.name || '--'}</td>
-                  <td>{log.eventType || '--'}</td>
-                  <td>{log.description}</td>
-                  <td>{log.category || '--'}</td>
-                  <td>{log.ccuEvent || '--'}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={8} style={{ textAlign: 'center', color: '#888' }}>
-                  No logs to display for the selected filters.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    </>
   );
 };
 

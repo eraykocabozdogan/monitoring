@@ -9,10 +9,36 @@
   flex-direction: column;
 }
 
-.title {
-  margin-top: 0;
+.header { /* Header'ı yatayda hizalamak için eklendi */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 16px;
-  flex-shrink: 0; 
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+}
+
+.filterButton { /* Yeni butonun stilleri */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--color-background-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filterButton:hover {
+  border-color: var(--color-brand);
+  background-color: var(--color-background-secondary);
 }
 
 .tableContainer {
@@ -33,6 +59,7 @@
   padding: 12px 8px;
   text-align: left;
   border-bottom: 1px solid var(--color-border);
+  font-size: 14px; /* Font boyutunu standartlaştırma */
 }
 
 .table th {
