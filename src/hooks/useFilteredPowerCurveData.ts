@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAppStore } from '../store/useAppStore.js';
+import { useAppStore } from '../store/useAppStore';
 
 export const useFilteredPowerCurveData = () => {
   const { powerCurveData, dateRange } = useAppStore();

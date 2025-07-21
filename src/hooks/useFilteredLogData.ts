@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { useAppStore } from '../store/useAppStore.js';
-import type { TurbineEvent } from '../types/index.js';
-import { useDebounce } from './useDebounce.js'; // Yeni hook'umuzu import ediyoruz
+import { useAppStore } from '../store/useAppStore';
+import type { TurbineEvent } from '../types/index';
+import { useDebounce } from './useDebounce';
 
 export const useFilteredLogData = () => {
   const { logEvents, dateRange, logFilters } = useAppStore();

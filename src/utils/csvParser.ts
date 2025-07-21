@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import type { TurbineEvent, PowerCurvePoint } from '../types/index.js';
+import type { TurbineEvent, PowerCurvePoint } from '../types/index';
 
 // Beklenen başlıklara "Name" eklendi
 const POWER_CURVE_HEADERS = ['TimeStamp', 'Actual Wind Speed (m/s)', 'Power (kW)', 'Ref Power (kW)'];
@@ -36,6 +36,7 @@ const identifyFileType = (headers: string[]): 'power' | 'log' | 'unknown' => {
  */
 const parseFile = (file: File): Promise<{ type: 'power' | 'log' | 'unknown'; data: (PowerCurvePoint | TurbineEvent)[] }> => {
   return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,

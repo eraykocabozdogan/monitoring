@@ -1,4 +1,4 @@
-import type { TurbineEvent, PowerCurvePoint, Metrics } from '../types/index.js';
+import type { TurbineEvent, PowerCurvePoint, Metrics } from '../types/index';
 
 const CUT_IN_SPEED = 3;
 const CUT_OUT_SPEED = 25;
@@ -99,10 +99,10 @@ export const calculateMetrics = (
     const Tmt = getTotalDurationInSeconds(maintenanceIntervals, range);
     const Twot = getTotalDurationInSeconds(weatherOutageIntervals, range);
     const Trt = getTotalDurationInSeconds(repairIntervals, range);
-    const T_unclassified_dt = getTotalDurationInSeconds(unclassifiedDowntimeIntervals, range);
+    // const T_unclassified_dt = getTotalDurationInSeconds(unclassifiedDowntimeIntervals, range);
     
     // Tdt (Toplam Teknik Duruş), hem sınıflandırılmış arızaları (Trt) hem de belirsiz duruşları içerir.
-    const Tdt = Trt + T_unclassified_dt;
+    // const Tdt = Trt + T_unclassified_dt; // Şu anda kullanılmıyor, gelecekte kullanım için burada bırakıldı
 
     // --- ADIM 3: Metrikleri Doğru Formüllerle Hesapla ---
 

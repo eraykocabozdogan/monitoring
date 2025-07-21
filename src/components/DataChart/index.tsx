@@ -1,8 +1,8 @@
 import React, { useRef, useMemo, useCallback, memo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { useAppStore } from '../../store/useAppStore.js';
-import { format, addMinutes, subMinutes, getMinutes, getHours, getDate, getMonth, getYear } from 'date-fns';
-import type { PowerCurvePoint, TurbineEvent, CommentSelection } from '../../types/index.js';
+import { useAppStore } from '../../store/useAppStore';
+import { format, getMinutes, getHours, getDate, getMonth, getYear } from 'date-fns';
+import type { PowerCurvePoint, TurbineEvent } from '../../types/index';
 import styles from './DataChart.module.css';
 
 // Tooltip için olayları gruplamak üzere Map anahtarı oluşturur (Yıl-Ay-Gün-Saat-Dakika)
@@ -23,7 +23,7 @@ const DataChart: React.FC = () => {
     theme,
   } = useAppStore();
 
-  const chartRef = useRef<any>(null);
+  const chartRef = useRef<ReactECharts | null>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   // --- PERFORMANS OPTİMİZASYONU: Tooltip için olayları önceden grupla ---
@@ -96,6 +96,7 @@ const DataChart: React.FC = () => {
   }, [powerCurveData, logEvents, theme]);
 
   // --- PERFORMANS OPTİMİZASYONU: Tooltip formatlayıcı artık Map'den okuma yapıyor ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatTooltip = useCallback((params: any) => {
     const tooltipTheme = {
         backgroundColor: theme === 'dark' ? 'rgba(20, 20, 30, 0.9)' : 'rgba(255, 255, 255, 0.95)',
@@ -136,8 +137,10 @@ const DataChart: React.FC = () => {
       if (chartRef.current) {
         const echartsInstance = chartRef.current.getEchartsInstance();
         const newOption = echartsInstance.getOption();
-        if (newOption.dataZoom && newOption.dataZoom.length > 0) {
-          const { startValue, endValue } = newOption.dataZoom[0];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (newOption.dataZoom && Array.isArray(newOption.dataZoom) && (newOption.dataZoom as any[]).length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { startValue, endValue } = (newOption.dataZoom as any[])[0];
           if (startValue != null && endValue != null && (dateRange.start?.getTime() !== startValue || dateRange.end?.getTime() !== endValue)) {
             setDateRange({ start: new Date(startValue), end: new Date(endValue) });
           }
@@ -146,8 +149,10 @@ const DataChart: React.FC = () => {
     }, 300); // Debounce süresini 300ms olarak ayarlayalım
   }, [dateRange, setDateRange]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleLegendSelectChanged = useCallback((e: any) => setLegendSelected(e.selected), [setLegendSelected]);
-  
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleBrushSelected = useCallback((params: any) => {
     const areas = params.areas;
     if (!areas || areas.length === 0) {

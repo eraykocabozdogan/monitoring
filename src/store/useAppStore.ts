@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { TurbineEvent, PowerCurvePoint, Metrics, Comment, CommentSelection } from '../types/index.js';
-import { parseCsvFiles } from '../utils/csvParser.js';
+import type { TurbineEvent, PowerCurvePoint, Metrics, Comment, CommentSelection } from '../types/index';
+import { parseCsvFiles } from '../utils/csvParser';
 
 type Theme = 'light' | 'dark';
 

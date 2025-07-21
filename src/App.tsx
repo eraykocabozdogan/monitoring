@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from './store/useAppStore';
-import { useFilteredLogData } from './hooks/useFilteredLogData.js';
-import { calculateMetrics } from './utils/calculations.js';
-import { useDebounce } from './hooks/useDebounce'; // Debounce hook'unu import et
+import { useFilteredLogData } from './hooks/useFilteredLogData';
+import { calculateMetrics } from './utils/calculations';
+import { useDebounce } from './hooks/useDebounce';
 
 import CsvUploader from './components/CsvUploader';
 import DataChart from './components/DataChart';
@@ -36,8 +36,7 @@ function App() {
     } else {
       setMetrics({ operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [logEvents, powerCurveData, debouncedDateRange, setMetrics]); // setMetrics'i bağımlılıktan çıkarabiliriz
+  }, [logEvents, powerCurveData, debouncedDateRange, setMetrics]);
 
   return (
     <DashboardLayout>

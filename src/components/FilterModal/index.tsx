@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStore, type LogFilters } from '../../store/useAppStore';
 import type { TurbineEvent } from '../../types';
 import styles from './FilterModal.module.css';
 
@@ -44,14 +44,18 @@ const FilterModal: React.FC = () => {
   }, [logEvents]);
 
   const handleCheckboxChange = (category: keyof TurbineEvent, value: string) => {
-    const currentFilters = tempLogFilters[category] || [];
+    // Sadece filtrelenebilir kategoriyi kontrol et
+    if (category === 'timestamp' || category === 'description') return;
+    
+    const categoryKey = category as keyof LogFilters;
+    const currentFilters = tempLogFilters[categoryKey] || [];
     const newFilters = currentFilters.includes(value)
-      ? currentFilters.filter(item => item !== value)
+      ? currentFilters.filter((item: string) => item !== value)
       : [...currentFilters, value];
     
     setTempLogFilters({
       ...tempLogFilters,
-      [category]: newFilters,
+      [categoryKey]: newFilters,
     });
   };
 
@@ -76,7 +80,10 @@ const FilterModal: React.FC = () => {
                   <label key={value} className={styles.checkboxLabel}>
                     <input
                       type="checkbox"
-                      checked={(tempLogFilters[category as keyof TurbineEvent] || []).includes(value)}
+                      checked={(() => {
+                        const categoryKey = category as keyof LogFilters;
+                        return (tempLogFilters[categoryKey] || []).includes(value);
+                      })()}
                       onChange={() => handleCheckboxChange(category as keyof TurbineEvent, value)}
                     />
                     <span>{value}</span>
