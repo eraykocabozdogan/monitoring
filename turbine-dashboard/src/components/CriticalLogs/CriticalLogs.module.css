@@ -7,9 +7,10 @@
   width: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* Kartın dışına taşmayı engelle */
 }
 
-.header { /* Header'ı yatayda hizalamak için eklendi */
+.header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -21,7 +22,7 @@
   margin: 0;
 }
 
-.filterButton { /* Yeni butonun stilleri */
+.filterButton {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -41,35 +42,66 @@
   background-color: var(--color-background-secondary);
 }
 
+/* Tablo yapısını div'lerle yeniden oluşturuyoruz */
 .tableContainer {
   flex-grow: 1;
-  overflow-y: auto;
-  min-height: 200px;
-  max-height: 620px;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--color-border);
   border-radius: 4px;
+  overflow: hidden; /* İçerideki kaydırma çubuğunun düzgün çalışması için */
 }
 
-.table {
+/* Ortak satır ve başlık stili */
+.tableHeader, .tableRow {
+  display: flex;
   width: 100%;
-  border-collapse: collapse;
-}
-
-.table th, .table td {
-  padding: 12px 8px;
-  text-align: left;
   border-bottom: 1px solid var(--color-border);
-  font-size: 14px; /* Font boyutunu standartlaştırma */
 }
 
-.table th {
+.tableHeader {
   background-color: var(--color-background-hover);
   font-weight: 600;
-  position: sticky;
+  flex-shrink: 0;
+  position: sticky; /* Gerekirse başlığı sabitlemek için */
   top: 0;
   z-index: 1;
 }
 
-.table tbody tr:hover {
+.tableRow:hover {
   background-color: var(--color-background-hover);
+}
+
+.tableBody {
+  flex-grow: 1;
+  overflow: auto; /* Sadece body'nin kaydırılmasını sağlar */
+}
+
+/* Sütun genişliklerini yöneten hücre stili */
+.tableCell {
+  padding: 12px 8px;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0; /* Hücrelerin küçülmesini engeller */
+  display: flex;
+  align-items: center;
+}
+
+/* Sütun genişliklerini burada belirliyoruz */
+.tableCell:nth-child(1) { width: 12%; } /* Date */
+.tableCell:nth-child(2) { width: 9%; }  /* Time */
+.tableCell:nth-child(3) { width: 8%; }  /* Status */
+.tableCell:nth-child(4) { width: 12%; } /* Name */
+.tableCell:nth-child(5) { width: 12%; } /* Event Type */
+.tableCell:nth-child(6) { width: 27%; } /* Description (en geniş) */
+.tableCell:nth-child(7) { width: 10%; } /* Category */
+.tableCell:nth-child(8) { width: 10%; } /* CCU Event */
+
+
+.noLogs {
+  text-align: center;
+  color: var(--color-text-secondary);
+  padding: 40px;
 }

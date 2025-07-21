@@ -1,18 +1,24 @@
 import { useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import type { TurbineEvent } from '../types/index.js';
+import { useDebounce } from './useDebounce.js'; // Yeni hook'umuzu import ediyoruz
 
 export const useFilteredLogData = () => {
   const { logEvents, dateRange, logFilters } = useAppStore();
 
+  // --- PERFORMANS OPTİMİZASYONU ---
+  // dateRange'in sürekli değişimini 500ms gecikmeyle takip et.
+  // Bu, ağır filtreleme işleminin sadece kullanıcı etkileşimi durduktan sonra çalışmasını sağlar.
+  const debouncedDateRange = useDebounce(dateRange, 500);
+
   const filteredData = useMemo(() => {
-    // Tarih aralığı seçilmemişse veya log yoksa boş dizi döndür
-    if (!dateRange || !dateRange.start || !dateRange.end || !logEvents) {
+    // Filtreleme mantığı artık 'debouncedDateRange'e bağlandı.
+    if (!debouncedDateRange || !debouncedDateRange.start || !debouncedDateRange.end || !logEvents) {
       return [];
     }
     
-    const startTime = dateRange.start.getTime();
-    const endTime = dateRange.end.getTime();
+    const startTime = debouncedDateRange.start.getTime();
+    const endTime = debouncedDateRange.end.getTime();
 
     // Filtrelerin uygulanıp uygulanmadığını kontrol et
     const isFilterActive = Object.values(logFilters).some(filterValues => filterValues.length > 0);
@@ -44,7 +50,8 @@ export const useFilteredLogData = () => {
         return selectedValues.includes(String(eventValue));
       });
     });
-  }, [logEvents, dateRange, logFilters]);
+  // Bağımlılıklara dikkat: Artık 'dateRange' yerine 'debouncedDateRange' kullanılıyor.
+  }, [logEvents, debouncedDateRange, logFilters]);
 
   return filteredData;
 };
