@@ -20,15 +20,14 @@ const DataChart: React.FC = () => {
   const chartRef = useRef<any>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // ECharts serilerini oluştur (Nihai Görsel Düzenleme)
+  // ECharts serilerini oluştur (Opacity Güncellendi)
   const series = useMemo(() => {
-    // Profesyonel ve uyumlu renk paleti
     const colors = {
-      power: theme === 'dark' ? '#3b82f6' : '#2563eb',      // Güçlü Mavi
-      wind: theme === 'dark' ? '#22c55e' : '#16a34a',       // Canlı Yeşil
-      refPower: theme === 'dark' ? '#6b7280' : '#9ca3af',   // Referans için Nötr Gri
-      fault: '#f97316',                                    // Uyarı için Turuncu
-      criticalFault: '#dc2626'                             // Kritik için Canlı Kırmızı
+      power: theme === 'dark' ? '#3b82f6' : '#2563eb',
+      wind: theme === 'dark' ? '#22c55e' : '#16a34a',
+      refPower: theme === 'dark' ? '#6b7280' : '#9ca3af',
+      fault: '#f97316',
+      criticalFault: '#dc2626'
     };
 
     const faultEvents = logEvents
@@ -60,8 +59,9 @@ const DataChart: React.FC = () => {
         name: 'Power (kW)', 
         type: 'line', 
         showSymbol: false, 
-        lineStyle: { width: 1.5, color: colors.power },
-        z: 3, // En önde çiz
+        lineStyle: { width: 1.5, color: colors.power, opacity: 1 }, // Opacity eklendi
+        itemStyle: { opacity: 0.66 }, // Hover için de opacity
+        z: 3,
         data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) 
       },
        { 
@@ -69,16 +69,18 @@ const DataChart: React.FC = () => {
         type: 'line', 
         yAxisIndex: 1, 
         showSymbol: false, 
-        lineStyle: { width: 1.5, color: colors.wind },
-        z: 2, // Ortada çiz
+        lineStyle: { width: 1.5, color: colors.wind, opacity: 0.66 }, // Opacity eklendi
+        itemStyle: { opacity: 0.66 }, // Hover için de opacity
+        z: 2,
         data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) 
       },
       { 
         name: 'Expected Power (kW)', 
         type: 'line', 
         showSymbol: false, 
-        lineStyle: { width: 1, type: 'dashed', opacity: 0.8, color: colors.refPower }, 
-        z: 1, // En arkada çiz
+        lineStyle: { width: 1, type: 'dashed', color: colors.refPower, opacity: 0.66 }, // Opacity güncellendi
+        itemStyle: { opacity: 0.66 }, // Hover için de opacity
+        z: 1,
         data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) 
       },
       {
@@ -86,7 +88,7 @@ const DataChart: React.FC = () => {
         type: 'scatter',
         symbol: 'triangle',
         symbolSize: 9,
-        itemStyle: { color: colors.fault },
+        itemStyle: { color: colors.fault, opacity: 0.66 }, // Opacity eklendi
         data: faultEvents,
         zlevel: 10,
       },
@@ -95,7 +97,7 @@ const DataChart: React.FC = () => {
         type: 'scatter',
         symbol: 'diamond',
         symbolSize: 11,
-        itemStyle: { color: colors.criticalFault },
+        itemStyle: { color: colors.criticalFault, opacity: 0.66 }, // Opacity eklendi
         data: safetyCriticalFaultEvents,
         zlevel: 11,
       }
