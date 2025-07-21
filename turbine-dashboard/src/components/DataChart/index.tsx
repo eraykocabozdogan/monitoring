@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useCallback, memo } from 'react';
+import React, { useRef, useMemo, useCallback, memo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store/useAppStore.js';
 import { format, addMinutes, subMinutes } from 'date-fns';
@@ -13,6 +13,7 @@ const DataChart: React.FC = () => {
     setDateRange,
     legendSelected,
     setLegendSelected,
+    newCommentSelection,
     setNewCommentSelection,
     theme,
   } = useAppStore();
@@ -20,7 +21,17 @@ const DataChart: React.FC = () => {
   const chartRef = useRef<any>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // ECharts serilerini oluştur (Opacity Güncellendi)
+  useEffect(() => {
+    if (!newCommentSelection && chartRef.current) {
+      const echartsInstance = chartRef.current.getEchartsInstance();
+      echartsInstance.dispatchAction({
+        type: 'brush',
+        areas: [],
+      });
+    }
+  }, [newCommentSelection]);
+
+  // ECharts serilerini oluştur (PERFORMANS OPTİMİZASYONU YAPILDI)
   const series = useMemo(() => {
     const colors = {
       power: theme === 'dark' ? '#3b82f6' : '#2563eb',
@@ -30,83 +41,77 @@ const DataChart: React.FC = () => {
       criticalFault: '#dc2626'
     };
 
+    // --- PERFORMANS İYİLEŞTİRMESİ ---
+    // Güç verilerini bir Map'e dönüştürerek anlık erişim sağlıyoruz.
+    // Bu, her arıza için tüm güç verisi dizisini tarama (O(n*m)) ihtiyacını ortadan kaldırır.
+    const powerMap = new Map<number, PowerCurvePoint>();
+    powerCurveData.forEach(p => {
+        if (p.timestamp) {
+            powerMap.set(p.timestamp.getTime(), p);
+        }
+    });
+
+    // En yakın güç noktasını bulmak için optimize edilmiş fonksiyon
+    const getClosestPowerValue = (logTime: Date, powerData: PowerCurvePoint[]): number => {
+        if (powerData.length === 0) return 0;
+        const time = logTime.getTime();
+        // Önce doğrudan eşleşme var mı diye kontrol et
+        if (powerMap.has(time)) {
+            return powerMap.get(time)!.power;
+        }
+        // Eğer doğrudan eşleşme yoksa, en yakınını bul (bu daha az sıklıkta çalışacak)
+        const closestPoint = powerData.reduce((prev, curr) => 
+            Math.abs(curr.timestamp!.getTime() - time) < Math.abs(prev.timestamp!.getTime() - time) ? curr : prev
+        );
+        return closestPoint.power;
+    };
+    
     const faultEvents = logEvents
-      .filter(log => log.eventType?.toLowerCase().trim() === 'fault')
-      .map(log => {
-        const closestPowerPoint = powerCurveData.reduce((prev, curr) =>
-          Math.abs(curr.timestamp!.getTime() - log.timestamp!.getTime()) < Math.abs(prev.timestamp!.getTime() - log.timestamp!.getTime()) ? curr : prev
-        , powerCurveData[0] || { power: 0, timestamp: log.timestamp });
-        return {
-          value: [log.timestamp!.getTime(), closestPowerPoint.power],
+      .filter(log => log.eventType?.toLowerCase().trim() === 'fault' && log.timestamp)
+      .map(log => ({
+          value: [log.timestamp!.getTime(), getClosestPowerValue(log.timestamp!, powerCurveData)],
           rawData: log,
-        };
-      });
+      }));
 
     const safetyCriticalFaultEvents = logEvents
-      .filter(log => log.eventType?.toLowerCase().trim() === 'safety critical fault')
-      .map(log => {
-        const closestPowerPoint = powerCurveData.reduce((prev, curr) =>
-          Math.abs(curr.timestamp!.getTime() - log.timestamp!.getTime()) < Math.abs(prev.timestamp!.getTime() - log.timestamp!.getTime()) ? curr : prev
-        , powerCurveData[0] || { power: 0, timestamp: log.timestamp });
-        return {
-          value: [log.timestamp!.getTime(), closestPowerPoint.power],
-          rawData: log,
-        };
-      });
+      .filter(log => log.eventType?.toLowerCase().trim() === 'safety critical fault' && log.timestamp)
+      .map(log => ({
+        value: [log.timestamp!.getTime(), getClosestPowerValue(log.timestamp!, powerCurveData)],
+        rawData: log,
+      }));
 
     const allSeries = [
       { 
-        name: 'Power (kW)', 
-        type: 'line', 
-        showSymbol: false, 
-        lineStyle: { width: 1.5, color: colors.power, opacity: 1 }, // Opacity eklendi
-        itemStyle: { opacity: 0.66 }, // Hover için de opacity
-        z: 3,
+        name: 'Power (kW)', type: 'line', showSymbol: false, 
+        lineStyle: { width: 1.5, color: colors.power, opacity: 1 }, 
+        itemStyle: { opacity: 0.66 }, z: 3,
         data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) 
       },
-       { 
-        name: 'Wind Speed (m/s)', 
-        type: 'line', 
-        yAxisIndex: 1, 
-        showSymbol: false, 
-        lineStyle: { width: 1.5, color: colors.wind, opacity: 0.66 }, // Opacity eklendi
-        itemStyle: { opacity: 0.66 }, // Hover için de opacity
-        z: 2,
+      { 
+        name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, 
+        lineStyle: { width: 1.5, color: colors.wind, opacity: 0.66 },
+        itemStyle: { opacity: 0.66 }, z: 2,
         data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) 
       },
       { 
-        name: 'Expected Power (kW)', 
-        type: 'line', 
-        showSymbol: false, 
-        lineStyle: { width: 1, type: 'dashed', color: colors.refPower, opacity: 0.66 }, // Opacity güncellendi
-        itemStyle: { opacity: 0.66 }, // Hover için de opacity
-        z: 1,
+        name: 'Expected Power (kW)', type: 'line', showSymbol: false, 
+        lineStyle: { width: 1, type: 'dashed', color: colors.refPower, opacity: 0.66 },
+        itemStyle: { opacity: 0.66 }, z: 1,
         data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) 
       },
       {
-        name: 'Fault',
-        type: 'scatter',
-        symbol: 'triangle',
-        symbolSize: 9,
-        itemStyle: { color: colors.fault, opacity: 0.66 }, // Opacity eklendi
-        data: faultEvents,
-        zlevel: 10,
+        name: 'Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9,
+        itemStyle: { color: colors.fault, opacity: 0.66 }, data: faultEvents, zlevel: 10,
       },
       {
-        name: 'Safety Critical Fault',
-        type: 'scatter',
-        symbol: 'diamond',
-        symbolSize: 11,
-        itemStyle: { color: colors.criticalFault, opacity: 0.66 }, // Opacity eklendi
-        data: safetyCriticalFaultEvents,
-        zlevel: 11,
+        name: 'Safety Critical Fault', type: 'scatter', symbol: 'diamond', symbolSize: 11,
+        itemStyle: { color: colors.criticalFault, opacity: 0.66 }, data: safetyCriticalFaultEvents, zlevel: 11,
       }
     ];
 
     return allSeries;
   }, [powerCurveData, logEvents, theme]);
 
-  // ... (kalan hook'lar ve fonksiyonlar değişmedi)
   const formatTooltip = useCallback((params: any) => {
     const tooltipTheme = {
       backgroundColor: theme === 'dark' ? 'rgba(20, 20, 30, 0.9)' : 'rgba(255, 255, 255, 0.95)',
@@ -171,43 +176,32 @@ const DataChart: React.FC = () => {
 
   const handleBrushSelected = useCallback((params: any) => {
     const areas = params.areas;
-    if (areas.length > 0 && areas[0].coordRange) {
-      const [start, end] = areas[0].coordRange;
-      setNewCommentSelection({ start, end });
+    if (!areas || areas.length === 0) {
+      setNewCommentSelection(null);
+      return;
     }
-  }, [setNewCommentSelection]);
-
-  const handleChartClick = useCallback((params: any) => {
-      if (params.componentType === 'series') {
-          const pointInGrid = [params.event.offsetX, params.event.offsetY];
-          const echartsInstance = chartRef.current.getEchartsInstance();
-          if (echartsInstance.containPixel('grid', pointInGrid)) {
-              setNewCommentSelection({ start: params.data[0] });
-          }
+    const area = areas[0];
+    if (area && area.coordRange) {
+      const [start, end] = area.coordRange;
+      if (Math.abs(end - start) < 1000) {
+        setNewCommentSelection({ start });
+      } else {
+        setNewCommentSelection({ start, end });
       }
+    }
   }, [setNewCommentSelection]);
 
   const onEvents = useMemo(() => ({
     datazoom: handleDataZoom,
     legendselectchanged: handleLegendSelectChanged,
     brushselected: handleBrushSelected,
-    click: handleChartClick,
-  }), [handleDataZoom, handleLegendSelectChanged, handleBrushSelected, handleChartClick]);
-
+  }), [handleDataZoom, handleLegendSelectChanged, handleBrushSelected]);
 
   const option = useMemo(() => {
     const textColor = theme === 'dark' ? '#f9fafb' : '#1f2937';
     const axisLineColor = theme === 'dark' ? '#4b5563' : '#e5e7eb';
     return {
-      tooltip: { 
-        trigger: 'axis', 
-        formatter: formatTooltip,
-        axisPointer: { type: 'cross', animation: false, label: { backgroundColor: '#505765' } },
-        backgroundColor: 'transparent',
-        borderColor: 'transparent',
-        textStyle: { color: textColor },
-        extraCssText: 'box-shadow: none;'
-      },
+      tooltip: { trigger: 'axis', formatter: formatTooltip, axisPointer: { type: 'cross', animation: false, label: { backgroundColor: '#505765' } }, backgroundColor: 'transparent', borderColor: 'transparent', textStyle: { color: textColor }, extraCssText: 'box-shadow: none;' },
       legend: { data: Object.keys(legendSelected), selected: legendSelected, textStyle: { color: textColor } },
       grid: { left: '5%', right: '5%', bottom: '15%', containLabel: true },
       xAxis: { type: 'time', axisLine: { lineStyle: { color: axisLineColor } }, axisLabel: { color: textColor } },
@@ -218,9 +212,7 @@ const DataChart: React.FC = () => {
       dataZoom: [{ type: 'inside', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime() }, { type: 'slider', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime(), textStyle: { color: textColor } }],
       series: series,
       animation: false,
-      brush: {
-        toolbox: ['lineX', 'clear'], xAxisIndex: 'all', throttleType: 'debounce', throttleDelay: 500,
-      },
+      brush: { toolbox: ['lineX', 'clear'], xAxisIndex: 'all', throttleType: 'debounce', throttleDelay: 500, },
     }
   }, [dateRange, legendSelected, series, formatTooltip, theme]);
 

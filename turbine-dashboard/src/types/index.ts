@@ -33,6 +33,6 @@ export interface CommentSelection {
 export interface Comment {
   id: number;
   text: string;
-  selection: CommentSelection;
+  selection: CommentSelection | null; // `selection` artık null olabilir
   createdAt: Date;
 }
