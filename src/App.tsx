@@ -18,8 +18,8 @@ function App() {
   const { setMetrics, metrics, logEvents, powerCurveData, dateRange, theme, isLoading } = useAppStore();
   const [showControls, setShowControls] = useState(true);
   
-  // Orijinal dateRange'i 500ms gecikmeyle takip eden yeni bir state
-  const debouncedDateRange = useDebounce(dateRange, 500);
+  // GÜNCELLENDİ: Orijinal dateRange'i 200ms gecikmeyle takip et
+  const debouncedDateRange = useDebounce(dateRange, 200);
 
   const filteredLogsForTable = useFilteredLogData();
 
@@ -27,8 +27,7 @@ function App() {
     document.body.dataset.theme = theme;
   }, [theme]);
 
-  // Metrik hesaplama useEffect'i artık 'debouncedDateRange'e bağlandı.
-  // Bu sayede hesaplama sadece kullanıcı durduktan sonra yapılacak.
+  // Metrik hesaplama useEffect'i artık daha hızlı olan 'debouncedDateRange'e bağlandı.
   useEffect(() => {
     if (logEvents.length > 0 && powerCurveData.length > 0 && debouncedDateRange.start && debouncedDateRange.end) {
       const newMetrics = calculateMetrics(logEvents, powerCurveData, debouncedDateRange);

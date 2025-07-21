@@ -40,23 +40,9 @@ const DataChart: React.FC = () => {
     }
     return map;
   }, [logEvents]);
-
-  useEffect(() => {
-    if (!newCommentSelection && chartRef.current) {
-      const echartsInstance = chartRef.current.getEchartsInstance();
-      echartsInstance.dispatchAction({ type: 'brush', areas: [] });
-    }
-  }, [newCommentSelection]);
-
-  const series = useMemo(() => {
-    const colors = {
-        power: theme === 'dark' ? '#3b82f6' : '#2563eb',
-        wind: theme === 'dark' ? '#22c55e' : '#16a34a',
-        refPower: theme === 'dark' ? '#6b7280' : '#9ca3af',
-        fault: '#f97316',
-        criticalFault: '#dc2626'
-    };
-
+  
+  // --- YENİ: Ağır veri işleme mantığını tema değişikliğinden ayır ---
+  const processedSeriesData = useMemo(() => {
     const powerMap = new Map<number, PowerCurvePoint>();
     powerCurveData.forEach(p => p.timestamp && powerMap.set(p.timestamp.getTime(), p));
 
@@ -85,15 +71,35 @@ const DataChart: React.FC = () => {
         value: [log.timestamp!.getTime(), getClosestPowerValue(log.timestamp!)],
         rawData: log,
       }));
+      
+    return { faultEvents, safetyCriticalFaultEvents };
+  }, [logEvents, powerCurveData]);
+
+
+  useEffect(() => {
+    if (!newCommentSelection && chartRef.current) {
+      const echartsInstance = chartRef.current.getEchartsInstance();
+      echartsInstance.dispatchAction({ type: 'brush', areas: [] });
+    }
+  }, [newCommentSelection]);
+
+  const series = useMemo(() => {
+    const colors = {
+        power: theme === 'dark' ? '#3b82f6' : '#2563eb',
+        wind: theme === 'dark' ? '#22c55e' : '#16a34a',
+        refPower: theme === 'dark' ? '#6b7280' : '#9ca3af',
+        fault: '#f97316',
+        criticalFault: '#dc2626'
+    };
 
     return [
       { name: 'Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 1.5, color: colors.power, opacity: 1 }, itemStyle: { opacity: 0.66 }, z: 3, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) },
       { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, lineStyle: { width: 1.5, color: colors.wind, opacity: 0.66 }, itemStyle: { opacity: 0.66 }, z: 2, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
       { name: 'Expected Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 1, type: 'dashed', color: colors.refPower, opacity: 0.66 }, itemStyle: { opacity: 0.66 }, z: 1, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) },
-      { name: 'Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 0.66 }, data: faultEvents, zlevel: 10 },
-      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'diamond', symbolSize: 11, itemStyle: { color: colors.criticalFault, opacity: 0.66 }, data: safetyCriticalFaultEvents, zlevel: 11 }
+      { name: 'Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 0.66 }, data: processedSeriesData.faultEvents, zlevel: 10 },
+      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'diamond', symbolSize: 11, itemStyle: { color: colors.criticalFault, opacity: 0.66 }, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11 }
     ];
-  }, [powerCurveData, logEvents, theme]);
+  }, [powerCurveData, processedSeriesData, theme]);
 
   // --- PERFORMANS OPTİMİZASYONU: Tooltip formatlayıcı artık Map'den okuma yapıyor ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

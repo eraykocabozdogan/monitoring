@@ -6,10 +6,9 @@ import { useDebounce } from './useDebounce';
 export const useFilteredLogData = () => {
   const { logEvents, dateRange, logFilters } = useAppStore();
 
-  // --- PERFORMANS OPTİMİZASYONU ---
-  // dateRange'in sürekli değişimini 500ms gecikmeyle takip et.
-  // Bu, ağır filtreleme işleminin sadece kullanıcı etkileşimi durduktan sonra çalışmasını sağlar.
-  const debouncedDateRange = useDebounce(dateRange, 500);
+  // --- PERFORMANS OPTİMİZASYONU / GÜNCELLENDİ ---
+  // dateRange'in sürekli değişimini 200ms gecikmeyle takip et.
+  const debouncedDateRange = useDebounce(dateRange, 200);
 
   const filteredData = useMemo(() => {
     // Filtreleme mantığı artık 'debouncedDateRange'e bağlandı.
