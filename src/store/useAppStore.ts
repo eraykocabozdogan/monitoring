@@ -5,12 +5,16 @@ import { parseCsvFiles } from '../utils/csvParser';
 type Theme = 'light' | 'dark';
 
 // Filtreleme için tip tanımı
-export type LogFilters = Partial<Record<keyof Omit<TurbineEvent, 'timestamp' | 'description'>, string[]>>;
+export type LogFilters = Partial<Record<keyof Omit<TurbineEvent, 'timestamp' | 'description' | 'power' | 'windSpeed'>, string[]>>;
+
+// Metrik hesaplamaları için hafif veri tipi
+export type LightweightLogEvent = Pick<TurbineEvent, 'timestamp' | 'status' | 'eventType'>;
 
 interface AppState {
   stagedFiles: File[];
   logEvents: TurbineEvent[];
   powerCurveData: PowerCurvePoint[];
+  lightweightLogEvents: LightweightLogEvent[]; // Metrikler için
   dateRange: {
     start: Date | null;
     end: Date | null;
@@ -50,6 +54,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   stagedFiles: [],
   logEvents: [],
   powerCurveData: [],
+  lightweightLogEvents: [],
   dateRange: { start: null, end: null },
   metrics: { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 },
   legendSelected: {
@@ -91,7 +96,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     
     try {
       const parsedData = await parseCsvFiles(stagedFiles);
-      const { logs, power } = parsedData;
+      const { logs, power, lightweightLogs } = parsedData;
 
       if (logs.length === 0 && power.length === 0) {
         setIsLoading(false);
@@ -123,6 +128,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         logEvents: logs,
         powerCurveData: power,
+        lightweightLogEvents: lightweightLogs,
         stagedFiles: [],
         dateRange: { start: earliest, end: latest },
         metrics: { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 },

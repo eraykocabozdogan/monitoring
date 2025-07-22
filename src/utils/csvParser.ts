@@ -1,13 +1,15 @@
-import Papa from 'papaparse';
+import * as Papa from 'papaparse';
 import type { TurbineEvent, PowerCurvePoint } from '../types/index';
+import type { LightweightLogEvent } from '../store/useAppStore';
 
-// Beklenen başlıklara "Name" eklendi
+// Beklenen başlıklar güncellendi
 const POWER_CURVE_HEADERS = ['TimeStamp', 'Actual Wind Speed (m/s)', 'Power (kW)', 'Ref Power (kW)'];
 const EVENT_LOG_HEADERS = ['Timestamp', 'Status', 'Name', 'Description', 'Category', 'Event Type', 'CCU Event'];
 
 interface ParsedData {
   logs: TurbineEvent[];
   power: PowerCurvePoint[];
+  lightweightLogs: LightweightLogEvent[];
 }
 
 /**
@@ -29,12 +31,18 @@ const identifyFileType = (headers: string[]): 'power' | 'log' | 'unknown' => {
   return 'unknown';
 };
 
+interface ParsedFileResult {
+  type: 'power' | 'log' | 'unknown';
+  data: (PowerCurvePoint | TurbineEvent)[];
+  lightweightData?: LightweightLogEvent[];
+}
+
 /**
  * Parses a single CSV file into the appropriate data structure.
  * @param file - The CSV file to parse.
  * @returns A promise that resolves with the parsed data and its type.
  */
-const parseFile = (file: File): Promise<{ type: 'power' | 'log' | 'unknown'; data: (PowerCurvePoint | TurbineEvent)[] }> => {
+const parseFile = (file: File): Promise<ParsedFileResult> => {
   return new Promise((resolve, reject) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Papa.parse<any>(file, {
@@ -58,17 +66,33 @@ const parseFile = (file: File): Promise<{ type: 'power' | 'log' | 'unknown'; dat
           })).filter(d => d.timestamp && !isNaN(d.timestamp.getTime()));
           resolve({ type: 'power', data: powerData });
         } else if (fileType === 'log') {
-          // "Name" alanı artık okunup nesneye ekleniyor
-          const logData = results.data.map((row): TurbineEvent => ({
-            timestamp: new Date(row['Timestamp'].replace(' ', 'T') + 'Z'),
-            status: row['Status'],
-            name: row['Name'],
-            description: row['Description'],
-            category: row['Category'],
-            eventType: row['Event Type'],
-            ccuEvent: row['CCU Event'],
-          })).filter(d => d.timestamp && !isNaN(d.timestamp.getTime()));
-          resolve({ type: 'log', data: logData });
+          const logData: TurbineEvent[] = [];
+          const lightweightLogData: LightweightLogEvent[] = [];
+
+          results.data.forEach((row) => {
+            const timestamp = new Date(row['Timestamp'].replace(' ', 'T') + 'Z');
+            if (timestamp && !isNaN(timestamp.getTime())) {
+              logData.push({
+                timestamp,
+                status: row['Status'],
+                name: row['Name'],
+                description: row['Description'],
+                category: row['Category'],
+                eventType: row['Event Type'],
+                ccuEvent: row['CCU Event'],
+                power: parseFloat(row['Power (kW)']) || undefined,
+                windSpeed: parseFloat(row['Wind Speed (m/s)']) || undefined,
+              });
+              // DÜZELTME: eventType yerine 'Name' sütununu kullanıyoruz
+              lightweightLogData.push({
+                timestamp,
+                status: row['Status'],
+                eventType: row['Name'], // 'Name' sütunu artık eventType olarak atanıyor
+              });
+            }
+          });
+
+          resolve({ type: 'log', data: logData, lightweightData: lightweightLogData });
         }
       },
       error: (error: Error) => reject(error),
@@ -86,6 +110,7 @@ export const parseCsvFiles = async (files: File[]): Promise<ParsedData> => {
   const results: ParsedData = {
     logs: [],
     power: [],
+    lightweightLogs: [],
   };
 
   const parsePromises = files.map(file => parseFile(file));
@@ -94,13 +119,18 @@ export const parseCsvFiles = async (files: File[]): Promise<ParsedData> => {
   for (const result of parsedResults) {
     if (result.type === 'log') {
       results.logs.push(...(result.data as TurbineEvent[]));
+      if (result.lightweightData) {
+        results.lightweightLogs.push(...result.lightweightData);
+      }
     } else if (result.type === 'power') {
       results.power.push(...(result.data as PowerCurvePoint[]));
     }
   }
 
+  // Sort all data by timestamp
   results.logs.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
   results.power.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
+  results.lightweightLogs.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
 
   return results;
 };

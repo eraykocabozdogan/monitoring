@@ -15,10 +15,10 @@ import Comments from './components/Comments';
 import Spinner from './components/Spinner';
 
 function App() {
-  const { setMetrics, metrics, logEvents, powerCurveData, dateRange, theme, isLoading } = useAppStore();
+  // lightweightLogEvents'i store'dan çekiyoruz
+  const { setMetrics, metrics, lightweightLogEvents, powerCurveData, dateRange, theme, isLoading } = useAppStore();
   const [showControls, setShowControls] = useState(true);
   
-  // GÜNCELLENDİ: Orijinal dateRange'i 200ms gecikmeyle takip et
   const debouncedDateRange = useDebounce(dateRange, 200);
 
   const filteredLogsForTable = useFilteredLogData();
@@ -27,15 +27,17 @@ function App() {
     document.body.dataset.theme = theme;
   }, [theme]);
 
-  // Metrik hesaplama useEffect'i artık daha hızlı olan 'debouncedDateRange'e bağlandı.
+  // Metrik hesaplama useEffect'i DÜZELTİLDİ
   useEffect(() => {
-    if (logEvents.length > 0 && powerCurveData.length > 0 && debouncedDateRange.start && debouncedDateRange.end) {
-      const newMetrics = calculateMetrics(logEvents, powerCurveData, debouncedDateRange);
+    // lightweightLogEvents'in dolu olup olmadığını kontrol ediyoruz
+    if (lightweightLogEvents.length > 0 && powerCurveData.length > 0 && debouncedDateRange.start && debouncedDateRange.end) {
+      // calculateMetrics fonksiyonuna doğru parametreleri gönderiyoruz
+      const newMetrics = calculateMetrics(lightweightLogEvents, debouncedDateRange);
       setMetrics(newMetrics);
     } else {
       setMetrics({ operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 });
     }
-  }, [logEvents, powerCurveData, debouncedDateRange, setMetrics]);
+  }, [lightweightLogEvents, powerCurveData, debouncedDateRange, setMetrics]); // Bağımlılıklara lightweightLogEvents eklendi
 
   return (
     <DashboardLayout>

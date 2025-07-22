@@ -1,142 +1,221 @@
-import type { TurbineEvent, PowerCurvePoint, Metrics } from '../types/index';
+import type { Metrics } from '../types/index';
+import type { LightweightLogEvent } from '../store/useAppStore';
 
-const CUT_IN_SPEED = 3;
-const CUT_OUT_SPEED = 25;
-
+// Zaman aralığı için bir arayüz tanımlıyoruz
 interface TimeInterval {
-    start: Date;
-    end: Date;
+    start: number;
+    end: number;
 }
 
-// Helper: Verilen zaman aralıklarının seçili tarih aralığıyla kesişen toplam süresini saniye olarak hesaplar.
-const getTotalDurationInSeconds = (intervals: TimeInterval[], dateRange: TimeInterval): number => {
-    if (!intervals || intervals.length === 0) return 0;
-    let totalDuration = 0;
-    for (const interval of intervals) {
-        const start = Math.max(interval.start.getTime(), dateRange.start.getTime());
-        const end = Math.min(interval.end.getTime(), dateRange.end.getTime());
-        if (start < end) {
-            totalDuration += (end - start);
-        }
-    }
-    return totalDuration / 1000;
+// DÜZELTME: Olay kodlarını (sayıları) anahtar olarak kullanan harita
+const eventCategories: Record<string, 'Downtime' | 'Weather Out Time'> = {
+    // Downtime Events
+    '1': 'Downtime', '13': 'Downtime', '14': 'Downtime', '15': 'Downtime', '16': 'Downtime',
+    '18': 'Downtime', '19': 'Downtime', '22': 'Downtime', '23': 'Downtime', '24': 'Downtime',
+    '25': 'Downtime', '27': 'Downtime', '28': 'Downtime', '31': 'Downtime', '34': 'Downtime',
+    '35': 'Downtime', '36': 'Downtime', '41': 'Downtime', '42': 'Downtime', '45': 'Downtime',
+    '46': 'Downtime', '51': 'Downtime', '52': 'Downtime', '53': 'Downtime', '54': 'Downtime',
+    '55': 'Downtime', '56': 'Downtime', '57': 'Downtime', '59': 'Downtime', '63': 'Downtime',
+    '65': 'Downtime', '71': 'Downtime', '72': 'Downtime', '75': 'Downtime', '76': 'Downtime',
+    '77': 'Downtime', '81': 'Downtime', '82': 'Downtime', '83': 'Downtime', '86': 'Downtime',
+    '88': 'Downtime', '97': 'Downtime', '98': 'Downtime', '99': 'Downtime', '100': 'Downtime',
+    '102': 'Downtime', '105': 'Downtime', '106': 'Downtime', '107': 'Downtime', '112': 'Downtime',
+    '113': 'Downtime', '114': 'Downtime', '115': 'Downtime', '118': 'Downtime', '120': 'Downtime',
+    '121': 'Downtime', '122': 'Downtime', '124': 'Downtime', '125': 'Downtime', '129': 'Downtime',
+    '130': 'Downtime', '131': 'Downtime', '132': 'Downtime', '133': 'Downtime', '134': 'Downtime',
+    '136': 'Downtime', '137': 'Downtime', '139': 'Downtime', '140': 'Downtime', '141': 'Downtime',
+    '142': 'Downtime', '145': 'Downtime', '149': 'Downtime', '150': 'Downtime', '157': 'Downtime',
+    '163': 'Downtime', '170': 'Downtime', '177': 'Downtime', '179': 'Downtime', '201': 'Downtime',
+    '203': 'Downtime', '205': 'Downtime', '208': 'Downtime', '212': 'Downtime', '213': 'Downtime',
+    '214': 'Downtime', '222': 'Downtime', '223': 'Downtime', '224': 'Downtime', '232': 'Downtime',
+    '235': 'Downtime', '237': 'Downtime', '242': 'Downtime', '243': 'Downtime', '247': 'Downtime',
+    '250': 'Downtime', '266': 'Downtime', '270': 'Downtime', '274': 'Downtime', '275': 'Downtime',
+    '276': 'Downtime', '288': 'Downtime', '291': 'Downtime', '297': 'Downtime', '311': 'Downtime',
+    '323': 'Downtime', '326': 'Downtime', '327': 'Downtime', '334': 'Downtime', '335': 'Downtime',
+    '336': 'Downtime', '340': 'Downtime', '341': 'Downtime', '342': 'Downtime', '343': 'Downtime',
+    '344': 'Downtime', '346': 'Downtime', '349': 'Downtime', '351': 'Downtime', '352': 'Downtime',
+    '353': 'Downtime', '358': 'Downtime', '360': 'Downtime', '365': 'Downtime', '367': 'Downtime',
+    '368': 'Downtime', '381': 'Downtime', '382': 'Downtime', '383': 'Downtime', '384': 'Downtime',
+    '401': 'Downtime', '418': 'Downtime', '419': 'Downtime', '420': 'Downtime', '426': 'Downtime',
+    '434': 'Downtime', '435': 'Downtime', '436': 'Downtime', '437': 'Downtime', '438': 'Downtime',
+    '439': 'Downtime', '446': 'Downtime', '447': 'Downtime', '448': 'Downtime', '449': 'Downtime',
+    '450': 'Downtime', '478': 'Downtime', '484': 'Downtime', '485': 'Downtime', '486': 'Downtime',
+    '504': 'Downtime', '505': 'Downtime', '510': 'Downtime', '538': 'Downtime', '539': 'Downtime',
+    '902': 'Downtime', '912': 'Downtime', '913': 'Downtime', '916': 'Downtime',
+    // Weather Out Time Events
+    '7': 'Weather Out Time', '78': 'Weather Out Time', '146': 'Weather Out Time', '295': 'Weather Out Time',
+    '317': 'Weather Out Time', '375': 'Weather Out Time', '445': 'Weather Out Time', '491': 'Weather Out Time',
+    '493': 'Weather Out Time', '495': 'Weather Out Time', '497': 'Weather Out Time', '552': 'Weather Out Time',
+    '553': 'Weather Out Time',
 };
 
-// Helper: İki zaman aralığı kümesi arasındaki toplam çakışma süresini saniye olarak hesaplar.
+// Yardımcı Fonksiyon: Zaman aralıklarını birleştirir
+const mergeIntervals = (intervals: TimeInterval[]): TimeInterval[] => {
+    if (intervals.length < 2) return intervals;
+    intervals.sort((a, b) => a.start - b.start);
+    const merged: TimeInterval[] = [intervals[0]];
+    for (let i = 1; i < intervals.length; i++) {
+        const last = merged[merged.length - 1];
+        const current = intervals[i];
+        if (current.start <= last.end) {
+            last.end = Math.max(last.end, current.end);
+        } else {
+            merged.push(current);
+        }
+    }
+    return merged;
+};
+
+// Yardımcı Fonksiyon: İki aralık listesinin kesişim süresini saniye olarak hesaplar
 const calculateOverlapSeconds = (intervalsA: TimeInterval[], intervalsB: TimeInterval[]): number => {
-    if (!intervalsA || !intervalsB || intervalsA.length === 0 || intervalsB.length === 0) return 0;
-    let overlapDuration = 0;
-    for (const a of intervalsA) {
-        for (const b of intervalsB) {
-            const start = Math.max(a.start.getTime(), b.start.getTime());
-            const end = Math.min(a.end.getTime(), b.end.getTime());
-            if (start < end) {
-                overlapDuration += (end - start);
-            }
+    let overlap = 0;
+    const sortedA = [...intervalsA].sort((a, b) => a.start - b.start);
+    const sortedB = [...intervalsB].sort((a, b) => a.start - b.start);
+    let i = 0;
+    let j = 0;
+    while (i < sortedA.length && j < sortedB.length) {
+        const start = Math.max(sortedA[i].start, sortedB[j].start);
+        const end = Math.min(sortedA[i].end, sortedB[j].end);
+        if (start < end) {
+            overlap += (end - start);
+        }
+        if (sortedA[i].end < sortedB[j].end) {
+            i++;
+        } else {
+            j++;
         }
     }
-    return overlapDuration / 1000;
+    return overlap / 1000;
 };
 
+// Ana metrik hesaplama fonksiyonu
 export const calculateMetrics = (
-    logs: TurbineEvent[],
-    powerData: PowerCurvePoint[],
+    logs: LightweightLogEvent[],
     dateRange: { start: Date | null, end: Date | null }
 ): Metrics => {
 
-    if (!dateRange.start || !dateRange.end || powerData.length < 2) {
-        return { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 };
+    const emptyMetrics: Metrics = { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 };
+    if (!dateRange.start || !dateRange.end || logs.length < 2) {
+        return emptyMetrics;
     }
 
-    const T_total_seconds = (dateRange.end.getTime() - dateRange.start.getTime()) / 1000;
-    if (T_total_seconds <= 0) return { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 };
+    const rangeStart = dateRange.start.getTime();
+    const rangeEnd = dateRange.end.getTime();
+    const T_total_seconds = (rangeEnd - rangeStart) / 1000;
+    if (T_total_seconds <= 0) return emptyMetrics;
 
-    // --- ADIM 1: Her durum için BAĞIMSIZ zaman aralığı listeleri oluştur ---
-    const operatingIntervals: TimeInterval[] = [];
-    const weatherOutageIntervals: TimeInterval[] = [];
-    const repairIntervals: TimeInterval[] = [];
-    const unclassifiedDowntimeIntervals: TimeInterval[] = [];
-    
-    const faultLogs = logs.filter(l => l.eventType?.toLowerCase().includes('fault'));
-
-    for (let i = 0; i < powerData.length - 1; i++) {
-        const p1 = powerData[i];
-        const p2 = powerData[i + 1];
-        const interval: TimeInterval = { start: p1.timestamp!, end: p2.timestamp! };
-
-        if (p1.power > 0) {
-            operatingIntervals.push(interval);
-        } else { // Güç üretimi yoksa (downtime)
-            const isWeatherOutage = p1.windSpeed < CUT_IN_SPEED || p1.windSpeed > CUT_OUT_SPEED;
-            const hasFault = faultLogs.some(l => l.timestamp! >= interval.start && l.timestamp! < interval.end);
-
-            if (isWeatherOutage) {
-                weatherOutageIntervals.push(interval);
+    const eventsByType: Record<string, LightweightLogEvent[]> = {};
+    for (const log of logs) {
+        if (log.eventType) {
+            if (!eventsByType[log.eventType]) {
+                eventsByType[log.eventType] = [];
             }
-            if (hasFault) {
-                repairIntervals.push(interval);
-            }
-            // Eğer hava koşulu DEĞİLSE ve arıza olarak işaretlenmemişse, bu "diğer/belirsiz" bir teknik duruştur.
-            if (!isWeatherOutage && !hasFault) {
-                unclassifiedDowntimeIntervals.push(interval);
-            }
+            eventsByType[log.eventType].push(log);
         }
     }
 
-    // Bakım logları, powerData'dan tamamen bağımsız olarak kendi aralıklarını oluşturur.
-    const maintenanceIntervals: TimeInterval[] = logs
-        .filter(l => l.eventType === 'EVENT_155' && l.status === 'ON')
-        .map(startLog => {
-            const endLog = logs.find(l => l.eventType === 'EVENT_155' && l.status === 'OFF' && l.timestamp! > startLog.timestamp!);
-            return endLog ? { start: startLog.timestamp!, end: endLog.timestamp! } : null;
-        })
-        .filter((interval): interval is TimeInterval => interval !== null);
+    const allIntervals: Record<string, TimeInterval[]> = {};
 
-    // --- ADIM 2: Süreleri ve Kesişimleri Hesapla ---
-    const range: TimeInterval = { start: dateRange.start, end: dateRange.end };
+    for (const eventType in eventsByType) {
+        const eventLogs = eventsByType[eventType];
+        const rawIntervals: TimeInterval[] = [];
+        let openEvent: LightweightLogEvent | null = null;
 
-    const T_operating = getTotalDurationInSeconds(operatingIntervals, range);
-    const Tmt = getTotalDurationInSeconds(maintenanceIntervals, range);
-    const Twot = getTotalDurationInSeconds(weatherOutageIntervals, range);
-    const Trt = getTotalDurationInSeconds(repairIntervals, range);
-    // const T_unclassified_dt = getTotalDurationInSeconds(unclassifiedDowntimeIntervals, range);
+        for (const log of eventLogs) {
+             const status = log.status.trim().toUpperCase();
+            if (status === 'ON' && !openEvent) {
+                openEvent = log;
+            } else if (status === 'OFF' && openEvent) {
+                rawIntervals.push({ start: openEvent.timestamp!.getTime(), end: log.timestamp!.getTime() });
+                openEvent = null;
+            }
+        }
+        
+        if (rawIntervals.length === 0) continue;
+
+        // 30 dakika kuralı ile birleştirme
+        rawIntervals.sort((a, b) => a.start - b.start);
+        const merged30Min: TimeInterval[] = [rawIntervals[0]];
+        for (let i = 1; i < rawIntervals.length; i++) {
+            const last = merged30Min[merged30Min.length - 1];
+            const current = rawIntervals[i];
+            const diffMinutes = (current.start - last.start) / (1000 * 60);
+
+            if (diffMinutes < 30) {
+                last.end = Math.max(last.end, current.end);
+            } else {
+                merged30Min.push(current);
+            }
+        }
+        allIntervals[eventType] = merged30Min;
+    }
     
-    // Tdt (Toplam Teknik Duruş), hem sınıflandırılmış arızaları (Trt) hem de belirsiz duruşları içerir.
-    // const Tdt = Trt + T_unclassified_dt; // Şu anda kullanılmıyor, gelecekte kullanım için burada bırakıldı
-
-    // --- ADIM 3: Metrikleri Doğru Formüllerle Hesapla ---
-
-    // Technical Availability (AT): Kontrol edilemeyen (hava) ve planlı (bakım) süreler hariç, türbinin çalışmaya müsait olduğu zaman.
-    const at_denominator = T_total_seconds - Twot - Tmt;
-    const at = at_denominator > 0 ? (T_operating / at_denominator) * 100 : 0;
+    // Kategorilere göre aralıkları grupla ve birleştir
+    const categoryIntervals: { [key: string]: TimeInterval[] } = {
+        Downtime: [],
+        WeatherOutTime: [],
+        Maintenance: [],
+        Repair: [],
+    };
     
-    // Operational Availability (AO): Toplam takvim süresi içinde türbinin fiilen ne kadar çalıştığı.
-    const ao = T_total_seconds > 0 ? (T_operating / T_total_seconds) * 100 : 0;
-    
-    // MTBF & MTTR
-    // Arıza sayısını daha doğru hesaplayalım: Çalışma periyodundan sonra bir arıza periyodu başlıyorsa 1 sayılır.
-    let numberOfFailures = 0;
-    for (let i = 0; i < operatingIntervals.length; i++) {
-        const operatingEnd = operatingIntervals[i].end.getTime();
-        const nextFaultStart = repairIntervals.find(r => r.start.getTime() >= operatingEnd);
-        if (nextFaultStart && (nextFaultStart.start.getTime() - operatingEnd < 1000 * 60 * 10)) { // 10dk içinde arıza olduysa
-            numberOfFailures++;
+    for (const eventType in allIntervals) {
+        // DÜZELTME: "EVENT_957" gibi bir metinden sadece sayıyı alıyoruz
+        const eventNumber = eventType.replace(/[^0-9]/g, '');
+        const category = eventCategories[eventNumber] || (eventNumber === '155' ? 'Maintenance' : (eventNumber === '156' ? 'Repair' : undefined));
+        
+        if (category) {
+            const targetList = category === 'Downtime' ? categoryIntervals.Downtime :
+                               category === 'Weather Out Time' ? categoryIntervals.WeatherOutTime :
+                               category === 'Maintenance' ? categoryIntervals.Maintenance :
+                               categoryIntervals.Repair;
+            targetList.push(...allIntervals[eventType]);
         }
     }
-    const mtbf_hours = numberOfFailures > 0 ? (T_operating / 3600) / numberOfFailures : 0;
-    const mttr_hours = numberOfFailures > 0 ? (Trt / 3600) / numberOfFailures : 0;
 
-    // Reliability (R): Hava koşulları nedeniyle duruş olması gerekirken, aynı anda teknik bir arıza yaşanma oranını ölçer.
+    const downtimeIntervals = mergeIntervals(categoryIntervals.Downtime);
+    const weatherOutageIntervals = mergeIntervals(categoryIntervals.WeatherOutTime);
+    const maintenanceIntervals = mergeIntervals(categoryIntervals.Maintenance);
+    const repairIntervals = mergeIntervals(categoryIntervals.Repair);
+
+    const getTotalDurationInSeconds = (intervals: TimeInterval[]) => {
+        return intervals.reduce((acc, curr) => {
+            const start = Math.max(curr.start, rangeStart);
+            const end = Math.min(curr.end, rangeEnd);
+            return start < end ? acc + (end - start) : acc;
+        }, 0) / 1000;
+    };
+
+    const T_DT = getTotalDurationInSeconds(downtimeIntervals);
+    const T_MT = getTotalDurationInSeconds(maintenanceIntervals);
+    const T_RT = getTotalDurationInSeconds(repairIntervals);
+    const T_WOT = getTotalDurationInSeconds(weatherOutageIntervals);
+    const numberOfFailures = repairIntervals.length;
+
+    // Tüm duruşları birleştirerek Operating Time hesapla
+    const allDowntimePool = [...downtimeIntervals, ...weatherOutageIntervals, ...maintenanceIntervals, ...repairIntervals];
+    const mergedTotalDowntimeIntervals = mergeIntervals(allDowntimePool);
+    const T_total_downtime_seconds = getTotalDurationInSeconds(mergedTotalDowntimeIntervals);
+
+    const T_operating_seconds = Math.max(0, T_total_seconds - T_total_downtime_seconds);
+    
+    // Metrikleri hesapla
+    const ao = T_total_seconds > 0 ? (T_operating_seconds / T_total_seconds) * 100 : 0;
+
+    const at_denominator = T_total_seconds - (T_MT + T_WOT);
+    const at = at_denominator > 0 ? (T_operating_seconds / at_denominator) * 100 : 0; 
+
+    const mtbf_hours = numberOfFailures > 0 ? (T_operating_seconds / 3600) / numberOfFailures : 0;
+    const mttr_hours = numberOfFailures > 0 ? (T_RT / 3600) / numberOfFailures : 0;
+    
     let reliabilityR = 100;
-    if (Twot > 0) {
-        // Formül: R = 1 - Overlap(RT, WOT) / WOT
-        // Sadece "tamir" (fault) aralıklarının hava durumuyla kesişimine bakarız.
+    if (T_WOT > 0) {
+        const overlap_dt_wot = calculateOverlapSeconds(downtimeIntervals, weatherOutageIntervals);
         const overlap_rt_wot = calculateOverlapSeconds(repairIntervals, weatherOutageIntervals);
-        reliabilityR = (1 - (overlap_rt_wot / Twot)) * 100;
+        const total_overlap = overlap_dt_wot + overlap_rt_wot;
+        reliabilityR = (1 - (total_overlap / T_WOT)) * 100;
     }
-
-    // Sonuçların 0-100 aralığında kalmasını garantile
-    const clamp = (num: number) => Math.max(0, Math.min(100, num));
+    
+    const clamp = (num: number, min = 0, max = 100) => Math.max(min, Math.min(max, num));
 
     return {
         operationalAvailability: clamp(isFinite(ao) ? parseFloat(ao.toFixed(2)) : 0),

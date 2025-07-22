@@ -6,6 +6,9 @@ export interface TurbineEvent {
   category: string;
   eventType: string;
   ccuEvent: string;
+  // Metrik hesaplamaları için eklenecek yeni alanlar
+  power?: number;
+  windSpeed?: number;
 }
 
 export interface PowerCurvePoint {
