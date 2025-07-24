@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useFilteredLogData } from './hooks/useFilteredLogData';
 import { calculateMetrics } from './utils/calculations';
-import { useDebounce } from './hooks/useDebounce';
+// GÜNCELLEME: useDebounce import'u kaldırıldı.
+// import { useDebounce } from './hooks/useDebounce';
 
 import CsvUploader from './components/CsvUploader';
 import DataChart from './components/DataChart';
@@ -15,11 +16,11 @@ import Comments from './components/Comments';
 import Spinner from './components/Spinner';
 
 function App() {
-  // lightweightLogEvents'i store'dan çekiyoruz
   const { setMetrics, metrics, lightweightLogEvents, powerCurveData, dateRange, theme, isLoading } = useAppStore();
   const [showControls, setShowControls] = useState(true);
   
-  const debouncedDateRange = useDebounce(dateRange, 200);
+  // GÜNCELLEME: debouncedDateRange kaldırıldı.
+  // const debouncedDateRange = useDebounce(dateRange, 200);
 
   const filteredLogsForTable = useFilteredLogData();
 
@@ -27,17 +28,15 @@ function App() {
     document.body.dataset.theme = theme;
   }, [theme]);
 
-  // Metrik hesaplama useEffect'i DÜZELTİLDİ
+  // GÜNCELLEME: Metrik hesaplama useEffect'i artık doğrudan 'dateRange'e bağlı.
   useEffect(() => {
-    // lightweightLogEvents'in dolu olup olmadığını kontrol ediyoruz
-    if (lightweightLogEvents.length > 0 && powerCurveData.length > 0 && debouncedDateRange.start && debouncedDateRange.end) {
-      // calculateMetrics fonksiyonuna doğru parametreleri gönderiyoruz
-      const newMetrics = calculateMetrics(lightweightLogEvents, debouncedDateRange);
+    if (lightweightLogEvents.length > 0 && powerCurveData.length > 0 && dateRange.start && dateRange.end) {
+      const newMetrics = calculateMetrics(lightweightLogEvents, dateRange);
       setMetrics(newMetrics);
     } else {
       setMetrics({ operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 });
     }
-  }, [lightweightLogEvents, powerCurveData, debouncedDateRange, setMetrics]); // Bağımlılıklara lightweightLogEvents eklendi
+  }, [lightweightLogEvents, powerCurveData, dateRange, setMetrics]); // Bağımlılık 'dateRange' olarak değiştirildi.
 
   return (
     <DashboardLayout>

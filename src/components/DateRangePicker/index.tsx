@@ -23,15 +23,52 @@ const DateRangePicker: React.FC = () => {
     }
   };
 
+  // GÜNCELLEME: MUI teması, uygulamanın yeni koyu temasıyla eşleşecek şekilde tamamen yeniden yapılandırıldı.
   const muiTheme = createTheme({
     palette: {
       mode: theme,
       ...(theme === 'dark' && {
+        primary: {
+          main: '#FFC107', // Marka rengimiz (sarı)
+        },
         background: {
-          paper: '#1f2937',
+          paper: '#1E1E1E', // Bileşen arka planı
+        },
+        text: {
+          primary: '#E0E0E0',
+          secondary: '#B3B3B3',
         },
       }),
     },
+    components: {
+        MuiOutlinedInput: {
+            styleOverrides: {
+                root: {
+                    ...(theme === 'dark' && {
+                        '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#333333',
+                        },
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#444444',
+                        },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                            borderColor: '#FFC107',
+                        },
+                        backgroundColor: '#2A2A2A', // Input arka planı
+                    })
+                }
+            }
+        },
+        MuiSvgIcon: {
+            styleOverrides: {
+                root: {
+                    ...(theme === 'dark' && {
+                        color: '#B3B3B3',
+                    })
+                }
+            }
+        }
+    }
   });
 
   return (
@@ -40,12 +77,12 @@ const DateRangePicker: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
-          p: 2,
+          p: 2.5, // Padding 20px'e denk gelecek şekilde ayarlandı
           bgcolor: 'background.paper',
           borderRadius: '8px',
           boxShadow: 'var(--shadow-main)'
         }}>
-        <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 'bold' }}>
+        <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 'bold', textAlign: 'center', mb: 1 }}>
           Select Date Range
         </Typography>
         <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -54,30 +91,12 @@ const DateRangePicker: React.FC = () => {
             value={startDate}
             onChange={handleStartDateChange}
             disabled={!startDate}
-            slotProps={{
-              textField: {
-                sx: {
-                  '.MuiOutlinedInput-root': {
-                    backgroundColor: 'var(--color-background-hover)',
-                  },
-                },
-              },
-            }}
           />
           <DatePicker
             label="End Date"
             value={endDate}
             onChange={handleEndDateChange}
             disabled={!endDate}
-            slotProps={{
-              textField: {
-                sx: {
-                  '.MuiOutlinedInput-root': {
-                    backgroundColor: 'var(--color-background-hover)',
-                  },
-                },
-              },
-            }}
           />
         </LocalizationProvider>
       </Box>

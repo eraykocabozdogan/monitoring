@@ -26,9 +26,8 @@ const DataChart: React.FC = () => {
   const chartRef = useRef<ReactECharts | null>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Verinin gerçek bir power curve dosyasından gelip gelmediğini kontrol et
-  const hasRefPower = useMemo(() => 
-    powerCurveData.length > 0 && powerCurveData.some(p => p.refPower > 0), 
+  const hasRefPower = useMemo(() =>
+    powerCurveData.length > 0 && powerCurveData.some(p => p.refPower > 0),
     [powerCurveData]
   );
 
@@ -45,7 +44,7 @@ const DataChart: React.FC = () => {
     }
     return map;
   }, [logEvents]);
-  
+
   const processedSeriesData = useMemo(() => {
     const powerMap = new Map<number, PowerCurvePoint>();
     powerCurveData.forEach(p => p.timestamp && powerMap.set(p.timestamp.getTime(), p));
@@ -54,15 +53,15 @@ const DataChart: React.FC = () => {
         if (!logTime) return 0;
         const time = logTime.getTime();
         if (powerMap.has(time)) return powerMap.get(time)!.power;
-        
+
         if (powerCurveData.length === 0) return 0;
 
-        const closestPoint = powerCurveData.reduce((prev, curr) => 
+        const closestPoint = powerCurveData.reduce((prev, curr) =>
             Math.abs(curr.timestamp!.getTime() - time) < Math.abs(prev.timestamp!.getTime() - time) ? curr : prev
         );
         return closestPoint.power;
     };
-    
+
     const faultEvents = logEvents
       .filter(log => log.eventType?.toLowerCase().trim() === 'fault' && log.timestamp)
       .map(log => ({
@@ -76,10 +75,9 @@ const DataChart: React.FC = () => {
         value: [log.timestamp!.getTime(), getClosestPowerValue(log.timestamp!)],
         rawData: log,
       }));
-      
+
     return { faultEvents, safetyCriticalFaultEvents };
   }, [logEvents, powerCurveData]);
-
 
   useEffect(() => {
     if (!newCommentSelection && chartRef.current) {
@@ -89,44 +87,89 @@ const DataChart: React.FC = () => {
   }, [newCommentSelection]);
 
   const series = useMemo(() => {
+    // GÜNCELLEME: İsteğiniz doğrultusunda renkler son kez ayarlandı.
     const colors = {
-        power: theme === 'dark' ? '#3b82f6' : '#2563eb',
-        wind: theme === 'dark' ? '#22c55e' : '#16a34a',
-        refPower: theme === 'dark' ? '#6b7280' : '#9ca3af',
-        fault: '#f97316',
-        criticalFault: '#dc2626'
+        power: theme === 'dark' ? '#FFCA28' : '#1565C0', // Koyu: Canlı Sarı, Açık: Koyu Mavi
+        wind: theme === 'dark' ? '#26A69A' : '#2E7D32',  // Koyu: Deniz Yeşili, Açık: Koyu Yeşil
+        refPower: '#B39DDB',                             // Her iki tema için de açık ve belirgin bir Lavanta
+        fault: '#FFA726',                                // Canlı Turuncu
+        criticalFault: '#EF5350'                         // Yumuşak Kırmızı
     };
 
     const baseSeries = [
-      { name: 'Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 1.5, color: colors.power, opacity: 1 }, itemStyle: { opacity: 0.66 }, z: 3, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power]) },
-      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, lineStyle: { width: 1.5, color: colors.wind, opacity: 0.66 }, itemStyle: { opacity: 0.66 }, z: 2, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
-      { name: 'Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 0.66 }, data: processedSeriesData.faultEvents, zlevel: 10 },
-      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'diamond', symbolSize: 11, itemStyle: { color: colors.criticalFault, opacity: 0.66 }, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11 }
+      {
+        name: 'Power (kW)',
+        type: 'line',
+        showSymbol: false,
+        lineStyle: { width: 2, color: colors.power },
+        z: 10,
+        data: powerCurveData.map(event => [event.timestamp!.getTime(), event.power])
+      },
+      {
+        name: 'Wind Speed (m/s)',
+        type: 'line',
+        yAxisIndex: 1,
+        showSymbol: false,
+        lineStyle: {
+          width: 0
+        },
+        areaStyle: {
+          color: colors.wind,
+          opacity: 0.25
+        },
+        z: 1,
+        data: powerCurveData.map(event => [event.timestamp!.getTime(), event.windSpeed])
+      },
+      { name: 'Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.fault }, zlevel: 5, data: processedSeriesData.faultEvents },
+      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'diamond', symbolSize: 11, itemStyle: { color: colors.criticalFault }, zlevel: 5, data: processedSeriesData.safetyCriticalFaultEvents }
     ];
 
-    // YENİ MANTIK: Sadece refPower varsa bu seriyi ekle
     if (hasRefPower) {
-      baseSeries.splice(2, 0, { name: 'Expected Power (kW)', type: 'line', showSymbol: false, lineStyle: { width: 1, type: 'dashed', color: colors.refPower, opacity: 0.66 }, itemStyle: { opacity: 0.66 }, z: 1, data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower]) });
+      baseSeries.splice(2, 0, {
+        name: 'Expected Power (kW)',
+        type: 'line',
+        showSymbol: false,
+        lineStyle: {
+          width: 1.5,
+          type: 'dashed',
+          color: colors.refPower,
+          opacity: 1
+        },
+        z: 5,
+        data: powerCurveData.map(event => [event.timestamp!.getTime(), event.refPower])
+      });
     }
 
     return baseSeries;
   }, [powerCurveData, processedSeriesData, theme, hasRefPower]);
 
   const formatTooltip = useCallback((params: any) => {
-    // ... (Mevcut formatTooltip fonksiyonu değişmeden kalabilir) ...
-    // ...
+    // ... Fonksiyon değişmedi ...
   }, [eventsByTimeBucket, powerCurveData, theme]);
 
   const handleDataZoom = useCallback(() => {
-    // ... (Mevcut handleDataZoom fonksiyonu değişmeden kalabilir) ...
-    // ...
-  }, [dateRange, setDateRange]);
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    debounceTimer.current = setTimeout(() => {
+      if (chartRef.current) {
+        const echartsInstance = chartRef.current.getEchartsInstance();
+        const newOption = echartsInstance.getOption();
+        if (newOption && newOption.dataZoom && newOption.dataZoom.length > 0) {
+          const newDateRange = {
+            start: new Date(newOption.dataZoom[0].startValue),
+            end: new Date(newOption.dataZoom[0].endValue),
+          };
+          setDateRange(newDateRange);
+        }
+      }
+    }, 500);
+  }, [setDateRange]);
 
   const handleLegendSelectChanged = useCallback((e: any) => setLegendSelected(e.selected), [setLegendSelected]);
 
   const handleBrushSelected = useCallback((params: any) => {
-    // ... (Mevcut handleBrushSelected fonksiyonu değişmeden kalabilir) ...
-    // ...
+    // ... Fonksiyon değişmedi ...
   }, [setNewCommentSelection]);
 
   const onEvents = useMemo(() => ({
@@ -136,7 +179,6 @@ const DataChart: React.FC = () => {
   }), [handleDataZoom, handleLegendSelectChanged, handleBrushSelected]);
 
   const option = useMemo(() => {
-    // YENİ MANTIK: Lejantı, verinin varlığına göre dinamik olarak oluştur
     const legendData = ['Power (kW)', 'Wind Speed (m/s)', 'Fault', 'Safety Critical Fault'];
     if (hasRefPower) {
       legendData.splice(1, 0, 'Expected Power (kW)');
@@ -148,8 +190,24 @@ const DataChart: React.FC = () => {
       grid: { left: '5%', right: '5%', bottom: '15%', containLabel: true },
       xAxis: { type: 'time', axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' } },
       yAxis: [
-        { type: 'value', name: 'Power (kW)', nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, splitLine: { lineStyle: { color: [theme === 'dark' ? '#4b5563' : '#e5e7eb'] } } },
-        { type: 'value', name: 'Wind Speed (m/s)', nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, splitLine: { show: false } }
+        {
+          type: 'value',
+          name: 'Power (kW)',
+          min: 0,
+          nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' },
+          axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } },
+          axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' },
+          splitLine: { lineStyle: { color: [theme === 'dark' ? '#333333' : '#e5e7eb'] } }
+        },
+        {
+          type: 'value',
+          name: 'Wind Speed (m/s)',
+          min: 0,
+          nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' },
+          axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } },
+          axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' },
+          splitLine: { show: false }
+        }
       ],
       dataZoom: [{ type: 'inside', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime() }, { type: 'slider', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime(), textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' } }],
       series: series,

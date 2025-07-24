@@ -24,14 +24,14 @@
 }
 
 body[data-theme='dark'] {
-  --color-background-main: #111827;
-  --color-background-secondary: #1f2937;
-  --color-background-hover: #374151;
-  --color-text-primary: #f9fafb;
-  --color-text-secondary: #9ca3af;
-  --color-border: #4b5563;
-  --color-brand: #60a5fa;
-  --shadow-main: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --color-background-main: #121212; /* Siyaha yakın ana arka plan */
+  --color-background-secondary: #1E1E1E; /* İkincil arka plan (kartlar vb.) */
+  --color-background-hover: #2A2A2A; /* Üzerine gelme durumu için */
+  --color-text-primary: #E0E0E0; /* Ana metin rengi */
+  --color-text-secondary: #A0A0A0; /* İkincil metin rengi */
+  --color-border: #333333; /* Kenarlıklar için */
+  --color-brand: #3b82f6; /* Marka rengi aynı kalabilir */
+  --shadow-main: 0 4px 12px rgba(0, 0, 0, 0.5); /* Gölgeyi daha belirgin yapalım */
 }
 
 /*

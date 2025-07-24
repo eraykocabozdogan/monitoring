@@ -1,23 +1,23 @@
 import { useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import type { TurbineEvent } from '../types/index';
-import { useDebounce } from './useDebounce';
+// GÜNCELLEME: useDebounce import'u kaldırıldı.
+// import { useDebounce } from './useDebounce';
 
 export const useFilteredLogData = () => {
   const { logEvents, dateRange, logFilters } = useAppStore();
 
-  // --- PERFORMANS OPTİMİZASYONU / GÜNCELLENDİ ---
-  // dateRange'in sürekli değişimini 200ms gecikmeyle takip et.
-  const debouncedDateRange = useDebounce(dateRange, 200);
+  // GÜNCELLEME: debouncedDateRange kaldırıldı.
+  // const debouncedDateRange = useDebounce(dateRange, 200);
 
   const filteredData = useMemo(() => {
-    // Filtreleme mantığı artık 'debouncedDateRange'e bağlandı.
-    if (!debouncedDateRange || !debouncedDateRange.start || !debouncedDateRange.end || !logEvents) {
+    // Filtreleme mantığı artık 'debouncedDateRange' yerine doğrudan 'dateRange'e bağlandı.
+    if (!dateRange || !dateRange.start || !dateRange.end || !logEvents) {
       return [];
     }
     
-    const startTime = debouncedDateRange.start.getTime();
-    const endTime = debouncedDateRange.end.getTime();
+    const startTime = dateRange.start.getTime();
+    const endTime = dateRange.end.getTime();
 
     // Filtrelerin uygulanıp uygulanmadığını kontrol et
     const isFilterActive = Object.values(logFilters).some(filterValues => filterValues.length > 0);
@@ -49,8 +49,8 @@ export const useFilteredLogData = () => {
         return selectedValues.includes(String(eventValue));
       });
     });
-  // Bağımlılıklara dikkat: Artık 'dateRange' yerine 'debouncedDateRange' kullanılıyor.
-  }, [logEvents, debouncedDateRange, logFilters]);
+  // Bağımlılık 'dateRange' olarak değiştirildi.
+  }, [logEvents, dateRange, logFilters]);
 
   return filteredData;
 };
