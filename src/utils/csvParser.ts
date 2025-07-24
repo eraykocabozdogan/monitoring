@@ -58,12 +58,18 @@ const parseFile = (file: File): Promise<ParsedFileResult> => {
         }
         
         if (fileType === 'power') {
-          const powerData = results.data.map((row): PowerCurvePoint => ({
-            timestamp: new Date(row['TimeStamp'].replace(' ', 'T') + 'Z'),
-            windSpeed: parseFloat(row['Actual Wind Speed (m/s)']) || 0,
-            power: parseFloat(row['Power (kW)']) || 0,
-            refPower: parseFloat(row['Ref Power (kW)']) || 0,
-          })).filter(d => d.timestamp && !isNaN(d.timestamp.getTime()));
+          const powerData = results.data.map((row): PowerCurvePoint => {
+            // DÜZELTME: parseFloat'tan önce virgülden kurtuluyoruz.
+            const powerValue = row['Power (kW)'] ? String(row['Power (kW)']).replace(/,/g, '') : '0';
+            const refPowerValue = row['Ref Power (kW)'] ? String(row['Ref Power (kW)']).replace(/,/g, '') : '0';
+
+            return {
+              timestamp: new Date(row['TimeStamp'].replace(' ', 'T') + 'Z'),
+              windSpeed: parseFloat(row['Actual Wind Speed (m/s)']) || 0,
+              power: parseFloat(powerValue) || 0,
+              refPower: parseFloat(refPowerValue) || 0,
+            };
+          }).filter(d => d.timestamp && !isNaN(d.timestamp.getTime()));
           resolve({ type: 'power', data: powerData });
         } else if (fileType === 'log') {
           const logData: TurbineEvent[] = [];
@@ -72,6 +78,9 @@ const parseFile = (file: File): Promise<ParsedFileResult> => {
           results.data.forEach((row) => {
             const timestamp = new Date(row['Timestamp'].replace(' ', 'T') + 'Z');
             if (timestamp && !isNaN(timestamp.getTime())) {
+               // DÜZELTME: Virgülden kurtulma işlemini burada da yapıyoruz.
+              const powerValue = row['Power (kW)'] ? String(row['Power (kW)']).replace(/,/g, '') : undefined;
+
               logData.push({
                 timestamp,
                 status: row['Status'],
@@ -80,14 +89,14 @@ const parseFile = (file: File): Promise<ParsedFileResult> => {
                 category: row['Category'],
                 eventType: row['Event Type'],
                 ccuEvent: row['CCU Event'],
-                power: parseFloat(row['Power (kW)']) || undefined,
+                power: powerValue !== undefined ? parseFloat(powerValue) : undefined,
                 windSpeed: parseFloat(row['Wind Speed (m/s)']) || undefined,
               });
-              // DÜZELTME: eventType yerine 'Name' sütununu kullanıyoruz
+              
               lightweightLogData.push({
                 timestamp,
                 status: row['Status'],
-                eventType: row['Name'], // 'Name' sütunu artık eventType olarak atanıyor
+                eventType: row['Name'], 
               });
             }
           });
