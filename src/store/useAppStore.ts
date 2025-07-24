@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { TurbineEvent, PowerCurvePoint, Metrics, Comment, CommentSelection } from '../types/index';
 import { parseCsvFiles } from '../utils/csvParser';
+import { aggregateLogDataToPowerCurve } from '../utils/aggregator'; // Yeni fonksiyonu import et
 
 type Theme = 'light' | 'dark';
 
@@ -95,8 +96,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     setIsLoading(true);
     
     try {
-      const parsedData = await parseCsvFiles(stagedFiles);
-      const { logs, power, lightweightLogs } = parsedData;
+      let { logs, power, lightweightLogs } = await parseCsvFiles(stagedFiles);
+
+      // YENİ MANTIK: Eğer sadece log dosyası varsa, power verisini loglardan türet
+      if (logs.length > 0 && power.length === 0) {
+        power = aggregateLogDataToPowerCurve(logs);
+      }
 
       if (logs.length === 0 && power.length === 0) {
         setIsLoading(false);
@@ -135,7 +140,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         legendSelected: newLegendSelected,
         comments: [],
         newCommentSelection: null,
-        logFilters: {}, // Dosyalar yeniden işlendiğinde filtreleri sıfırla
+        logFilters: {}, 
         tempLogFilters: {},
       });
 
