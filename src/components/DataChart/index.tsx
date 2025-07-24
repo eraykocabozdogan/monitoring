@@ -87,13 +87,12 @@ const DataChart: React.FC = () => {
   }, [newCommentSelection]);
 
   const series = useMemo(() => {
-    // GÜNCELLEME: İsteğiniz doğrultusunda renkler son kez ayarlandı.
     const colors = {
-        power: theme === 'dark' ? '#FFCA28' : '#1565C0', // Koyu: Canlı Sarı, Açık: Koyu Mavi
-        wind: theme === 'dark' ? '#26A69A' : '#2E7D32',  // Koyu: Deniz Yeşili, Açık: Koyu Yeşil
-        refPower: '#B39DDB',                             // Her iki tema için de açık ve belirgin bir Lavanta
-        fault: '#FFA726',                                // Canlı Turuncu
-        criticalFault: '#EF5350'                         // Yumuşak Kırmızı
+        power: theme === 'dark' ? '#FFCA28' : '#1565C0',
+        wind: theme === 'dark' ? '#26A69A' : '#2E7D32',
+        refPower: '#B39DDB', // Her iki tema için de aynı renk
+        fault: '#FFA726',
+        criticalFault: '#EF5350'
     };
 
     const baseSeries = [
@@ -127,12 +126,12 @@ const DataChart: React.FC = () => {
     if (hasRefPower) {
       baseSeries.splice(2, 0, {
         name: 'Expected Power (kW)',
-        type: 'line',
+        type: 'line', // Sürekli bir çizgi olmasını sağlar
         showSymbol: false,
         lineStyle: {
           width: 1.5,
-          type: 'dashed',
-          color: colors.refPower,
+          type: 'dashed', // Çizgiyi kesikli yapar
+          color: colors.refPower, // Temadan bağımsız renk
           opacity: 1
         },
         z: 5,
@@ -144,8 +143,43 @@ const DataChart: React.FC = () => {
   }, [powerCurveData, processedSeriesData, theme, hasRefPower]);
 
   const formatTooltip = useCallback((params: any) => {
-    // ... Fonksiyon değişmedi ...
-  }, [eventsByTimeBucket, powerCurveData, theme]);
+    if (!Array.isArray(params) || params.length === 0) {
+        return '';
+    }
+
+    const firstParam = params[0];
+    const timestamp = firstParam.axisValue;
+    const date = new Date(timestamp);
+
+    const timeKey = getTimeBucketKey(date);
+    const eventsAtTime = eventsByTimeBucket.get(timeKey) || [];
+
+    const header = `<div class="${theme === 'dark' ? 'tooltip-dark' : 'tooltip-light'}">
+                        <div class="tooltip-header">${format(date, 'MMM d, yyyy HH:mm:ss')}</div>
+                        <div class="tooltip-body">`;
+    
+    let content = '<ul>';
+    params.forEach((param: any) => {
+        let value = Array.isArray(param.value) ? param.value[1] : param.value;
+        value = typeof value === 'number' ? value.toFixed(2) : value;
+        content += `<li>
+                      <span class="tooltip-marker" style="background-color:${param.color};"></span>
+                      <span>${param.seriesName}:</span>&nbsp;<strong>${value}</strong>
+                    </li>`;
+    });
+    content += '</ul>';
+
+    if (eventsAtTime.length > 0) {
+        content += '<div class="tooltip-separator"></div><div class="tooltip-events-title">Events at this time:</div><ul>';
+        eventsAtTime.forEach(event => {
+            content += `<li><span class="tooltip-event-name">${event.name}</span>: <span class="tooltip-event-desc">${event.description}</span></li>`;
+        });
+        content += '</ul>';
+    }
+
+    const footer = `</div></div>`;
+    return header + content + footer;
+  }, [eventsByTimeBucket, theme]);
 
   const handleDataZoom = useCallback(() => {
     if (debounceTimer.current) {
@@ -169,7 +203,17 @@ const DataChart: React.FC = () => {
   const handleLegendSelectChanged = useCallback((e: any) => setLegendSelected(e.selected), [setLegendSelected]);
 
   const handleBrushSelected = useCallback((params: any) => {
-    // ... Fonksiyon değişmedi ...
+    const areas = params.areas;
+    if (areas && areas.length > 0) {
+      const coordRange = areas[0].coordRange;
+      if (coordRange && coordRange.length > 0) {
+        const start = Math.floor(coordRange[0]);
+        const end = Math.floor(coordRange[1]);
+        setNewCommentSelection({ start, end });
+        return;
+      }
+    }
+    setNewCommentSelection(null);
   }, [setNewCommentSelection]);
 
   const onEvents = useMemo(() => ({
