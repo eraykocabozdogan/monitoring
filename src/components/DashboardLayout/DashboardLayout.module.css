@@ -18,11 +18,25 @@
   align-items: center;
 }
 
+.headerButtons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .title {
   margin: 0;
   color: var(--color-text-primary);
   font-size: 24px;
   font-weight: 600;
+}
+
+/* YENİ: Yeni grafik satırı için stiller */
+.chartsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
 }
 
 .bottomSection {
@@ -110,6 +124,10 @@
     justify-self: end;
   }
   .controlsRow {
+    grid-template-columns: 1fr;
+  }
+  /* YENİ: Daha küçük ekranlarda yeni grafikleri alt alta sırala */
+  .chartsRow {
     grid-template-columns: 1fr;
   }
 }

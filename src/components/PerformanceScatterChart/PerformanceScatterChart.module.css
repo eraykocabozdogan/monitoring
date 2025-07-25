@@ -1,0 +1,16 @@
+.container {
+  background-color: var(--color-background-secondary);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: var(--shadow-main);
+  color: var(--color-text-primary);
+  height: 400px; /* Sabit bir yükseklik verelim */
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-secondary);
+}

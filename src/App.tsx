@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useFilteredLogData } from './hooks/useFilteredLogData';
 import { calculateMetrics } from './utils/calculations';
-// GÜNCELLEME: useDebounce import'u kaldırıldı.
-// import { useDebounce } from './hooks/useDebounce';
+import { useDebounce } from './hooks/useDebounce';
 
 import CsvUploader from './components/CsvUploader';
 import DataChart from './components/DataChart';
@@ -15,12 +14,16 @@ import DateRangePicker from './components/DateRangePicker';
 import Comments from './components/Comments';
 import Spinner from './components/Spinner';
 
+// Yeni görselleştirme bileşenlerini import ediyoruz
+import PerformanceScatterChart from './components/PerformanceScatterChart';
+import FaultDistributionChart from './components/FaultDistributionChart';
+import WeeklyKpiChart from './components/WeeklyKpiChart';
+
 function App() {
   const { setMetrics, metrics, lightweightLogEvents, powerCurveData, dateRange, theme, isLoading } = useAppStore();
   const [showControls, setShowControls] = useState(true);
   
-  // GÜNCELLEME: debouncedDateRange kaldırıldı.
-  // const debouncedDateRange = useDebounce(dateRange, 200);
+  const debouncedDateRange = useDebounce(dateRange, 200);
 
   const filteredLogsForTable = useFilteredLogData();
 
@@ -28,21 +31,27 @@ function App() {
     document.body.dataset.theme = theme;
   }, [theme]);
 
-  // GÜNCELLEME: Metrik hesaplama useEffect'i artık doğrudan 'dateRange'e bağlı.
   useEffect(() => {
-    if (lightweightLogEvents.length > 0 && powerCurveData.length > 0 && dateRange.start && dateRange.end) {
-      const newMetrics = calculateMetrics(lightweightLogEvents, dateRange);
+    if (lightweightLogEvents.length > 0 && debouncedDateRange.start && debouncedDateRange.end) {
+      const newMetrics = calculateMetrics(lightweightLogEvents, debouncedDateRange);
       setMetrics(newMetrics);
     } else {
       setMetrics({ operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 });
     }
-  }, [lightweightLogEvents, powerCurveData, dateRange, setMetrics]); // Bağımlılık 'dateRange' olarak değiştirildi.
+  }, [lightweightLogEvents, debouncedDateRange, setMetrics]);
 
   return (
     <DashboardLayout>
       {isLoading && <Spinner />}
 
       <DataChart />
+
+      {/* YENİ: Görselleştirme satırı eklendi */}
+      <div className={styles.chartsRow}>
+        <PerformanceScatterChart />
+        <FaultDistributionChart />
+        <WeeklyKpiChart />
+      </div>
 
       <div className={styles.bottomSection}>
         <div>

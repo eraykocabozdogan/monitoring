@@ -1,0 +1,23 @@
+.container {
+  background-color: var(--color-background-secondary);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: var(--shadow-main);
+  color: var(--color-text-primary);
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-secondary);
+}
+
+.chartArea {
+  flex-grow: 1;
+  min-height: 0;
+}
