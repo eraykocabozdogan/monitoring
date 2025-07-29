@@ -1,4 +1,3 @@
-// src/components/KpiCard/index.tsx
 import React from 'react';
 import styles from './KpiCard.module.css';
 
@@ -14,7 +13,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ title, value, unit }) => {
     : '--';
 
   return (
-    <div className={styles.kpiCard}> {/* .card -> .kpiCard olarak güncellendi */}
+    <div className={styles.kpiCard}>
       <h3 className={styles.title}>{title}</h3>
       <p className={styles.value}>
         {displayValue}

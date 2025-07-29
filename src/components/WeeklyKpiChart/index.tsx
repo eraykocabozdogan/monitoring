@@ -14,7 +14,7 @@ const WeeklyKpiChart: React.FC = () => {
     if (!lightweightLogEvents || lightweightLogEvents.length === 0 || !dateRange.start || !dateRange.end) {
       return null;
     }
-    return calculateWeeklyMetrics(lightweightLogEvents, dateRange);
+    return calculateWeeklyMetrics(lightweightLogEvents, { start: dateRange.start, end: dateRange.end });
   }, [lightweightLogEvents, dateRange]);
 
   const kpiDetails = {
@@ -34,7 +34,7 @@ const WeeklyKpiChart: React.FC = () => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      formatter: (params: any) => `${params[0].name}<br/>${currentKpi.name.split(' ')[0]}: ${params[0].value.toFixed(2)}%`,
+            formatter: (params: { value: number }) => `${currentKpi.name}: ${params.value.toFixed(2)}`,
     },
     grid: {
       left: '3%',
@@ -75,7 +75,7 @@ const WeeklyKpiChart: React.FC = () => {
      return (
       <div className={styles.container}>
         <div className={styles.emptyState}>
-         Weekly KPI Chart için Event Log verisi gereklidir.
+         Weekly KPI Chart requires Event Log data.
         </div>
       </div>
     );

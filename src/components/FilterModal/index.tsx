@@ -12,16 +12,14 @@ const FilterModal: React.FC = () => {
     closeFilterModal,
   } = useAppStore();
 
-  // Log verilerinden her kategori için benzersiz değerleri çıkarır
   const uniqueFilterOptions = useMemo(() => {
-    const options: Record<keyof TurbineEvent, Set<string>> = {
+    const options: Partial<Record<keyof TurbineEvent, Set<string>>> = {
       status: new Set(),
       name: new Set(),
       eventType: new Set(),
-      description: new Set(), // Genellikle çok fazla benzersiz değer içerir, dikkatli kullanılmalı
+      description: new Set(),
       category: new Set(),
       ccuEvent: new Set(),
-      timestamp: new Set(), // Timestamp filtrelenmez
     };
 
     const filterableKeys: (keyof TurbineEvent)[] = ['status', 'name', 'eventType', 'category', 'ccuEvent'];
@@ -30,22 +28,23 @@ const FilterModal: React.FC = () => {
       filterableKeys.forEach(key => {
         const value = log[key];
         if (value && typeof value === 'string') {
-          options[key].add(value);
+          options[key]?.add(value);
         }
       });
     });
 
-    // Set'leri sıralanmış array'lere dönüştür
     const sortedOptions: Record<string, string[]> = {};
     for (const key of filterableKeys) {
-      sortedOptions[key] = Array.from(options[key]).sort();
+      const set = options[key];
+      if (set) {
+        sortedOptions[key] = Array.from(set).sort();
+      }
     }
     return sortedOptions;
   }, [logEvents]);
 
   const handleCheckboxChange = (category: keyof TurbineEvent, value: string) => {
-    // Sadece filtrelenebilir kategoriyi kontrol et
-    if (category === 'timestamp' || category === 'description') return;
+    if (category === 'timestamp' || category === 'description' || category === 'power' || category === 'windSpeed') return;
     
     const categoryKey = category as keyof LogFilters;
     const currentFilters = tempLogFilters[categoryKey] || [];

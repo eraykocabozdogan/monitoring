@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useCallback, memo, useEffect } from 'react';
+import React, { useRef, useMemo, useCallback, memo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store/useAppStore';
 import { format, getMinutes, getHours, getDate, getMonth, getYear } from 'date-fns';
@@ -18,7 +18,6 @@ const DataChart: React.FC = () => {
     legendSelected,
     setLegendSelected,
     theme,
-    // KALDIRILDI: newCommentSelection ve setNewCommentSelection artık burada kullanılmıyor
   } = useAppStore();
 
   const chartRef = useRef<ReactECharts | null>(null);
@@ -139,7 +138,7 @@ const DataChart: React.FC = () => {
     return baseSeries;
   }, [powerCurveData, processedSeriesData, theme, hasRefPower, dateRange]);
 
-  const formatTooltip = useCallback((params: any) => {
+  const formatTooltip = useCallback((params: unknown[]) => {
     const tooltipTheme = {
         backgroundColor: theme === 'dark' ? 'rgba(20, 20, 30, 0.9)' : 'rgba(255, 255, 255, 0.95)',
         textColor: theme === 'dark' ? '#f1f5f9' : '#1e293b',
@@ -148,7 +147,7 @@ const DataChart: React.FC = () => {
     const baseStyle = `font-family: sans-serif; font-size: 14px; color: ${tooltipTheme.textColor}; border-radius: 6px; border: 1px solid ${tooltipTheme.borderColor}; background-color: ${tooltipTheme.backgroundColor}; padding: 10px; min-width: 250px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);`;
     const hrStyle = `border-color: ${tooltipTheme.borderColor}; margin: 6px 0;`;
 
-    const firstParam = params[0];
+    const firstParam = params[0] as { seriesType: string; data: { rawData: TurbineEvent }; axisValue: number };
     if (!firstParam) return '';
 
     if (firstParam.seriesType === 'scatter') {
@@ -177,8 +176,9 @@ const DataChart: React.FC = () => {
       if (chartRef.current) {
         const echartsInstance = chartRef.current.getEchartsInstance();
         const newOption = echartsInstance.getOption();
-        if (newOption.dataZoom && Array.isArray(newOption.dataZoom) && (newOption.dataZoom as any[]).length > 0) {
-          const { startValue, endValue } = (newOption.dataZoom as any[])[0];
+        const dataZoomArray = newOption.dataZoom as { startValue?: number; endValue?: number }[];
+        if (dataZoomArray && Array.isArray(dataZoomArray) && dataZoomArray.length > 0) {
+          const { startValue, endValue } = dataZoomArray[0];
           if (startValue != null && endValue != null && (dateRange.start?.getTime() !== startValue || dateRange.end?.getTime() !== endValue)) {
             setDateRange({ start: new Date(startValue), end: new Date(endValue) });
           }
@@ -187,14 +187,11 @@ const DataChart: React.FC = () => {
     }, 300);
   }, [dateRange, setDateRange]);
 
-  const handleLegendSelectChanged = useCallback((e: any) => setLegendSelected(e.selected), [setLegendSelected]);
-
-  // KALDIRILDI: handleBrushSelected fonksiyonu tamamen silindi.
+  const handleLegendSelectChanged = useCallback((e: { selected: Record<string, boolean> }) => setLegendSelected(e.selected), [setLegendSelected]);
 
   const onEvents = useMemo(() => ({
     datazoom: handleDataZoom,
     legendselectchanged: handleLegendSelectChanged,
-    // KALDIRILDI: brushselected olayı silindi.
   }), [handleDataZoom, handleLegendSelectChanged]);
 
   const option = useMemo(() => {
@@ -217,7 +214,6 @@ const DataChart: React.FC = () => {
       dataZoom: [{ type: 'inside', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime() }, { type: 'slider', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime(), textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' } }],
       series: series,
       animation: false,
-      // KALDIRILDI: `brush` özelliği ve `toolbox` tamamen kaldırıldı.
     };
   }, [dateRange, legendSelected, series, formatTooltip, theme, hasRefPower]);
 

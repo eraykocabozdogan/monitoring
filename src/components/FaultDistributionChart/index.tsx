@@ -9,16 +9,14 @@ const FaultDistributionChart: React.FC = () => {
   const chartData = useMemo(() => {
     const categoryCounts = new Map<string, number>();
 
-    // Artık dateRange'e göre filtreleme yapıyoruz
     const filteredLogs = logEvents.filter(log => {
       if (!log.status || log.status !== 'ON' || !log.category || log.category === 'No Fault' || !log.timestamp) {
         return false;
       }
-      // Zaman damgasının seçili aralıkta olup olmadığını kontrol et
       if (dateRange.start && dateRange.end) {
         return log.timestamp >= dateRange.start && log.timestamp <= dateRange.end;
       }
-      return true; // Eğer dateRange seçilmemişse tümünü al
+      return true;
     });
 
     filteredLogs.forEach(log => {
@@ -27,7 +25,7 @@ const FaultDistributionChart: React.FC = () => {
     });
 
     return Array.from(categoryCounts.entries()).map(([name, value]) => ({ name, value }));
-  }, [logEvents, dateRange]); // Bağımlılığa dateRange eklendi
+  }, [logEvents, dateRange]);
 
   const option = {
     title: {
@@ -73,7 +71,7 @@ const FaultDistributionChart: React.FC = () => {
     return (
       <div className={styles.container}>
         <div className={styles.emptyState}>
-          Fault distribution için Event Log verisi gereklidir.
+          Fault distribution requires Event Log data.
         </div>
       </div>
     );

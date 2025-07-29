@@ -4,7 +4,6 @@ import { useAppStore } from '../../store/useAppStore.js';
 import styles from './CsvUploader.module.css';
 
 const CsvUploader = () => {
-  // Store'dan isLoading ve processStagedFiles'ı al, yerel state'i kaldır.
   const { stagedFiles, addStagedFile, removeStagedFile, processStagedFiles, isLoading } = useAppStore();
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -41,7 +40,7 @@ const CsvUploader = () => {
           accept=".csv"
           onChange={handleFileChange}
           className={styles.uploadInput}
-          disabled={isLoading} // İşlem sırasında input'u devre dışı bırak
+          disabled={isLoading}
         />
         <button className={styles.uploadButton} type="button" disabled={isLoading}>
           Add File
@@ -63,7 +62,7 @@ const CsvUploader = () => {
                   onClick={() => removeStagedFile(file.name)}
                   className={styles.removeButton}
                   title="Remove file"
-                  disabled={isLoading} // İşlem sırasında devre dışı bırak
+                  disabled={isLoading}
                 >
                   &times;
                 </button>

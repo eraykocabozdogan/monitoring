@@ -23,16 +23,15 @@ const DateRangePicker: React.FC = () => {
     }
   };
 
-  // GÜNCELLEME: MUI teması, uygulamanın yeni koyu temasıyla eşleşecek şekilde tamamen yeniden yapılandırıldı.
   const muiTheme = createTheme({
     palette: {
       mode: theme,
       ...(theme === 'dark' && {
         primary: {
-          main: '#FFC107', // Marka rengimiz (sarı)
+          main: '#FFC107',
         },
         background: {
-          paper: '#1E1E1E', // Bileşen arka planı
+          paper: '#1E1E1E',
         },
         text: {
           primary: '#E0E0E0',
@@ -54,7 +53,7 @@ const DateRangePicker: React.FC = () => {
                         '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
                             borderColor: '#FFC107',
                         },
-                        backgroundColor: '#2A2A2A', // Input arka planı
+                        backgroundColor: '#2A2A2A',
                     })
                 }
             }
@@ -77,7 +76,7 @@ const DateRangePicker: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
-          p: 2.5, // Padding 20px'e denk gelecek şekilde ayarlandı
+          p: 2.5,
           bgcolor: 'background.paper',
           borderRadius: '8px',
           boxShadow: 'var(--shadow-main)'

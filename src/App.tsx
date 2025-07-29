@@ -13,18 +13,15 @@ import KpiCard from './components/KpiCard';
 import DateRangePicker from './components/DateRangePicker';
 import Comments from './components/Comments';
 import Spinner from './components/Spinner';
-
-// Yeni görselleştirme bileşenlerini import ediyoruz
 import PerformanceScatterChart from './components/PerformanceScatterChart';
 import FaultDistributionChart from './components/FaultDistributionChart';
 import WeeklyKpiChart from './components/WeeklyKpiChart';
 
 function App() {
-  const { setMetrics, metrics, lightweightLogEvents, powerCurveData, dateRange, theme, isLoading } = useAppStore();
+  const { setMetrics, metrics, lightweightLogEvents, dateRange, theme, isLoading } = useAppStore();
   const [showControls, setShowControls] = useState(true);
   
   const debouncedDateRange = useDebounce(dateRange, 200);
-
   const filteredLogsForTable = useFilteredLogData();
 
   useEffect(() => {
@@ -46,7 +43,6 @@ function App() {
 
       <DataChart />
 
-      {/* YENİ: Görselleştirme satırı eklendi */}
       <div className={styles.chartsRow}>
         <PerformanceScatterChart />
         <FaultDistributionChart />

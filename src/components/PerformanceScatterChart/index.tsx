@@ -16,7 +16,7 @@ const PerformanceScatterChart: React.FC = () => {
     },
     tooltip: {
       trigger: 'item',
-      formatter: (params: any) => `Wind: ${params.value[0].toFixed(2)} m/s<br/>Power: ${params.value[1].toFixed(2)} kW`,
+      formatter: (params: { value: number[] }) => `Wind: ${params.value[0].toFixed(2)} m/s<br/>Power: ${params.value[1].toFixed(2)} kW`,
     },
     grid: {
       left: '3%',
@@ -69,7 +69,7 @@ const PerformanceScatterChart: React.FC = () => {
     return (
       <div className={styles.container}>
         <div className={styles.emptyState}>
-          Performance Scatter Chart için Power Curve verisi gereklidir.
+          Performance Scatter Chart requires Power Curve data.
         </div>
       </div>
     );

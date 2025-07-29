@@ -43,9 +43,8 @@ interface AppState {
   resetLogFilters: () => void;
 }
 
-// Helper function to ensure spinner is visible for at least a short time
-const withMinimumLoading = async (action: () => Promise<any>) => {
-  const minLoadingTime = 500; // 0.5 saniye
+const withMinimumLoading = async (action: () => Promise<unknown>) => {
+  const minLoadingTime = 500;
   const startTime = Date.now();
   try {
     return await action();
@@ -95,7 +94,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     await withMinimumLoading(async () => {
       try {
-        let { logs, power, lightweightLogs } = await parseCsvFiles(stagedFiles);
+        const { logs: parsedLogs, power: parsedPower, lightweightLogs: parsedLightweightLogs } = await parseCsvFiles(stagedFiles);
+        const logs = parsedLogs;
+        let power = parsedPower;
+        const lightweightLogs = parsedLightweightLogs;
 
         if (logs.length > 0 && power.length === 0) {
           power = aggregateLogDataToPowerCurve(logs);
@@ -127,7 +129,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
         result = { success: true, message: "Files processed successfully." };
       } catch (error) {
-        console.error("File processing error:", error);
         result = { success: false, message: error instanceof Error ? error.message : "An unknown error occurred." };
       }
     });

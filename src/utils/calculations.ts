@@ -1,15 +1,12 @@
 import type { Metrics } from '../types/index';
 import type { LightweightLogEvent } from '../store/useAppStore';
 
-// Zaman aralığı için bir arayüz tanımlıyoruz
 interface TimeInterval {
     start: number;
     end: number;
 }
 
-// DÜZELTME: Olay kodlarını (sayıları) anahtar olarak kullanan harita
 const eventCategories: Record<string, 'Downtime' | 'Weather Out Time'> = {
-    // Downtime Events
     '1': 'Downtime', '13': 'Downtime', '14': 'Downtime', '15': 'Downtime', '16': 'Downtime',
     '18': 'Downtime', '19': 'Downtime', '22': 'Downtime', '23': 'Downtime', '24': 'Downtime',
     '25': 'Downtime', '27': 'Downtime', '28': 'Downtime', '31': 'Downtime', '34': 'Downtime',
@@ -42,14 +39,12 @@ const eventCategories: Record<string, 'Downtime' | 'Weather Out Time'> = {
     '450': 'Downtime', '478': 'Downtime', '484': 'Downtime', '485': 'Downtime', '486': 'Downtime',
     '504': 'Downtime', '505': 'Downtime', '510': 'Downtime', '538': 'Downtime', '539': 'Downtime',
     '902': 'Downtime', '912': 'Downtime', '913': 'Downtime', '916': 'Downtime',
-    // Weather Out Time Events
     '7': 'Weather Out Time', '78': 'Weather Out Time', '146': 'Weather Out Time', '295': 'Weather Out Time',
     '317': 'Weather Out Time', '375': 'Weather Out Time', '445': 'Weather Out Time', '491': 'Weather Out Time',
     '493': 'Weather Out Time', '495': 'Weather Out Time', '497': 'Weather Out Time', '552': 'Weather Out Time',
     '553': 'Weather Out Time',
 };
 
-// Yardımcı Fonksiyon: Zaman aralıklarını birleştirir
 const mergeIntervals = (intervals: TimeInterval[]): TimeInterval[] => {
     if (intervals.length < 2) return intervals;
     intervals.sort((a, b) => a.start - b.start);
@@ -66,7 +61,6 @@ const mergeIntervals = (intervals: TimeInterval[]): TimeInterval[] => {
     return merged;
 };
 
-// Yardımcı Fonksiyon: İki aralık listesinin kesişim süresini saniye olarak hesaplar
 const calculateOverlapSeconds = (intervalsA: TimeInterval[], intervalsB: TimeInterval[]): number => {
     let overlap = 0;
     const sortedA = [...intervalsA].sort((a, b) => a.start - b.start);
@@ -88,7 +82,6 @@ const calculateOverlapSeconds = (intervalsA: TimeInterval[], intervalsB: TimeInt
     return overlap / 1000;
 };
 
-// Ana metrik hesaplama fonksiyonu
 export const calculateMetrics = (
     logs: LightweightLogEvent[],
     dateRange: { start: Date | null, end: Date | null }
@@ -133,7 +126,6 @@ export const calculateMetrics = (
         
         if (rawIntervals.length === 0) continue;
 
-        // 30 dakika kuralı ile birleştirme
         rawIntervals.sort((a, b) => a.start - b.start);
         const merged30Min: TimeInterval[] = [rawIntervals[0]];
         for (let i = 1; i < rawIntervals.length; i++) {
@@ -150,7 +142,6 @@ export const calculateMetrics = (
         allIntervals[eventType] = merged30Min;
     }
     
-    // Kategorilere göre aralıkları grupla ve birleştir
     const categoryIntervals: { [key: string]: TimeInterval[] } = {
         Downtime: [],
         WeatherOutTime: [],
@@ -159,7 +150,6 @@ export const calculateMetrics = (
     };
     
     for (const eventType in allIntervals) {
-        // DÜZELTME: "EVENT_957" gibi bir metinden sadece sayıyı alıyoruz
         const eventNumber = eventType.replace(/[^0-9]/g, '');
         const category = eventCategories[eventNumber] || (eventNumber === '155' ? 'Maintenance' : (eventNumber === '156' ? 'Repair' : undefined));
         
@@ -185,20 +175,17 @@ export const calculateMetrics = (
         }, 0) / 1000;
     };
 
-    const T_DT = getTotalDurationInSeconds(downtimeIntervals);
     const T_MT = getTotalDurationInSeconds(maintenanceIntervals);
     const T_RT = getTotalDurationInSeconds(repairIntervals);
     const T_WOT = getTotalDurationInSeconds(weatherOutageIntervals);
     const numberOfFailures = repairIntervals.length;
 
-    // Tüm duruşları birleştirerek Operating Time hesapla
     const allDowntimePool = [...downtimeIntervals, ...weatherOutageIntervals, ...maintenanceIntervals, ...repairIntervals];
     const mergedTotalDowntimeIntervals = mergeIntervals(allDowntimePool);
     const T_total_downtime_seconds = getTotalDurationInSeconds(mergedTotalDowntimeIntervals);
 
     const T_operating_seconds = Math.max(0, T_total_seconds - T_total_downtime_seconds);
     
-    // Metrikleri hesapla
     const ao = T_total_seconds > 0 ? (T_operating_seconds / T_total_seconds) * 100 : 0;
 
     const at_denominator = T_total_seconds - (T_MT + T_WOT);

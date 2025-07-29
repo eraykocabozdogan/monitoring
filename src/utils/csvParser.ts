@@ -2,7 +2,6 @@ import * as Papa from 'papaparse';
 import type { TurbineEvent, PowerCurvePoint } from '../types/index';
 import type { LightweightLogEvent } from '../store/useAppStore';
 
-// Beklenen başlıklar güncellendi
 const POWER_CURVE_HEADERS = ['TimeStamp', 'Actual Wind Speed (m/s)', 'Power (kW)', 'Ref Power (kW)'];
 const EVENT_LOG_HEADERS = ['Timestamp', 'Status', 'Name', 'Description', 'Category', 'Event Type', 'CCU Event'];
 
@@ -12,11 +11,6 @@ interface ParsedData {
   lightweightLogs: LightweightLogEvent[];
 }
 
-/**
- * Identifies the type of CSV file based on its headers.
- * @param headers - Array of header strings from the CSV.
- * @returns 'power' if it's a power curve file, 'log' if it's an event log file, or 'unknown'.
- */
 const identifyFileType = (headers: string[]): 'power' | 'log' | 'unknown' => {
   const hasPowerCurveHeaders = POWER_CURVE_HEADERS.every(h => headers.includes(h));
   if (hasPowerCurveHeaders) {
@@ -37,15 +31,9 @@ interface ParsedFileResult {
   lightweightData?: LightweightLogEvent[];
 }
 
-/**
- * Parses a single CSV file into the appropriate data structure.
- * @param file - The CSV file to parse.
- * @returns A promise that resolves with the parsed data and its type.
- */
 const parseFile = (file: File): Promise<ParsedFileResult> => {
   return new Promise((resolve, reject) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Papa.parse<any>(file, {
+    Papa.parse<Record<string, string>>(file, {
       header: true,
       skipEmptyLines: true,
       transformHeader: header => header.trim(),
@@ -59,7 +47,6 @@ const parseFile = (file: File): Promise<ParsedFileResult> => {
         
         if (fileType === 'power') {
           const powerData = results.data.map((row): PowerCurvePoint => {
-            // DÜZELTME: parseFloat'tan önce virgülden kurtuluyoruz.
             const powerValue = row['Power (kW)'] ? String(row['Power (kW)']).replace(/,/g, '') : '0';
             const refPowerValue = row['Ref Power (kW)'] ? String(row['Ref Power (kW)']).replace(/,/g, '') : '0';
 
@@ -78,7 +65,6 @@ const parseFile = (file: File): Promise<ParsedFileResult> => {
           results.data.forEach((row) => {
             const timestamp = new Date(row['Timestamp'].replace(' ', 'T') + 'Z');
             if (timestamp && !isNaN(timestamp.getTime())) {
-               // DÜZELTME: Virgülden kurtulma işlemini burada da yapıyoruz.
               const powerValue = row['Power (kW)'] ? String(row['Power (kW)']).replace(/,/g, '') : undefined;
 
               logData.push({
@@ -110,11 +96,6 @@ const parseFile = (file: File): Promise<ParsedFileResult> => {
 };
 
 
-/**
- * Parses multiple CSV files and sorts them into logs and power curve data.
- * @param files - An array of File objects.
- * @returns A promise that resolves to an object containing arrays of log and power data.
- */
 export const parseCsvFiles = async (files: File[]): Promise<ParsedData> => {
   const results: ParsedData = {
     logs: [],
@@ -136,7 +117,6 @@ export const parseCsvFiles = async (files: File[]): Promise<ParsedData> => {
     }
   }
 
-  // Sort all data by timestamp
   results.logs.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
   results.power.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
   results.lightweightLogs.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());

@@ -4,13 +4,12 @@ import { useAppStore } from '../../store/useAppStore';
 import type { TurbineEvent } from '../../types/index.js';
 import styles from './CriticalLogs.module.css';
 import FilterModal from '../FilterModal';
-import { FixedSizeList as List } from 'react-window'; // Sanallaştırma için import ediyoruz
+import { FixedSizeList as List } from 'react-window';
 
 interface CriticalLogsProps {
   logs: TurbineEvent[];
 }
 
-// Her bir satırı render etmek için ayrı bir bileşen (memo ile optimize edildi)
 const LogRow = memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: TurbineEvent[] }) => {
   const log = data[index];
   return (
@@ -44,7 +43,6 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
         </div>
         
         <div className={styles.tableContainer}>
-          {/* Sabit Başlık (Header) */}
           <div className={styles.tableHeader}>
             <div className={styles.tableCell}>Date</div>
             <div className={styles.tableCell}>Time</div>
@@ -56,15 +54,14 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
             <div className={styles.tableCell}>CCU Event</div>
           </div>
 
-          {/* Sanallaştırılmış Liste (Sadece görünen satırları render eder) */}
           <div className={styles.tableBody}>
             {logs.length > 0 ? (
               <List
-                height={560} // Body için sabit bir yükseklik
-                itemCount={logs.length} // Toplam satır sayısı
-                itemSize={45} // Her bir satırın piksel cinsinden yüksekliği
+                height={560}
+                itemCount={logs.length}
+                itemSize={45}
                 width="100%"
-                itemData={logs} // Satır bileşenine veri aktarımı
+                itemData={logs}
               >
                 {LogRow}
               </List>
