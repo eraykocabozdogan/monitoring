@@ -59,7 +59,7 @@
     - Daha KÜÇÜK değer (örn: 0.8s) -> DAHA HIZLI döner.
     - Daha BÜYÜK değer (örn: 2s) -> DAHA YAVAŞ döner.
   */
-  animation: spin 0.3s linear infinite; /* <-- DÖNME HIZINI BURADAN AYARLAYIN */
+  animation: spin 0.45s linear infinite; /* <-- DÖNME HIZINI BURADAN AYARLAYIN */
 
   /*
     ===================================================================

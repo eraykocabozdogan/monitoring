@@ -1,21 +1,18 @@
 import { create } from 'zustand';
 import type { TurbineEvent, PowerCurvePoint, Metrics, Comment, CommentSelection } from '../types/index';
 import { parseCsvFiles } from '../utils/csvParser';
-import { aggregateLogDataToPowerCurve } from '../utils/aggregator'; // Yeni fonksiyonu import et
+import { aggregateLogDataToPowerCurve } from '../utils/aggregator';
 
 type Theme = 'light' | 'dark';
 
-// Filtreleme için tip tanımı
 export type LogFilters = Partial<Record<keyof Omit<TurbineEvent, 'timestamp' | 'description' | 'power' | 'windSpeed'>, string[]>>;
-
-// Metrik hesaplamaları için hafif veri tipi
 export type LightweightLogEvent = Pick<TurbineEvent, 'timestamp' | 'status' | 'eventType'>;
 
 interface AppState {
   stagedFiles: File[];
   logEvents: TurbineEvent[];
   powerCurveData: PowerCurvePoint[];
-  lightweightLogEvents: LightweightLogEvent[]; // Metrikler için
+  lightweightLogEvents: LightweightLogEvent[];
   dateRange: {
     start: Date | null;
     end: Date | null;
@@ -26,12 +23,9 @@ interface AppState {
   newCommentSelection: CommentSelection | null;
   theme: Theme;
   isLoading: boolean;
-
-  // Gelişmiş Filtreleme için yeni state'ler
   isFilterModalOpen: boolean;
   logFilters: LogFilters;
   tempLogFilters: LogFilters;
-
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
   processStagedFiles: () => Promise<{ success: boolean; message: string }>;
@@ -42,14 +36,26 @@ interface AppState {
   setNewCommentSelection: (selection: CommentSelection | null) => void;
   toggleTheme: () => void;
   setIsLoading: (loading: boolean) => void;
-
-  // Gelişmiş Filtreleme için yeni eylemler (actions)
   openFilterModal: () => void;
   closeFilterModal: () => void;
   setTempLogFilters: (filters: LogFilters) => void;
   applyLogFilters: () => void;
   resetLogFilters: () => void;
 }
+
+// Helper function to ensure spinner is visible for at least a short time
+const withMinimumLoading = async (action: () => Promise<any>) => {
+  const minLoadingTime = 500; // 0.5 saniye
+  const startTime = Date.now();
+  try {
+    return await action();
+  } finally {
+    const elapsedTime = Date.now() - startTime;
+    if (elapsedTime < minLoadingTime) {
+      await new Promise(resolve => setTimeout(resolve, minLoadingTime - elapsedTime));
+    }
+  }
+};
 
 export const useAppStore = create<AppState>((set, get) => ({
   stagedFiles: [],
@@ -58,19 +64,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   lightweightLogEvents: [],
   dateRange: { start: null, end: null },
   metrics: { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 },
-  legendSelected: {
-    'Power (kW)': true,
-    'Expected Power (kW)': true,
-    'Wind Speed (m/s)': true,
-    'Fault': true,
-    'Safety Critical Fault': true,
-  },
+  legendSelected: { 'Power (kW)': true, 'Expected Power (kW)': true, 'Wind Speed (m/s)': true, 'Fault': true, 'Safety Critical Fault': true },
   comments: [],
   newCommentSelection: null,
   theme: 'light',
   isLoading: false,
-
-  // Filtreleme state başlangıç değerleri
   isFilterModalOpen: false,
   logFilters: {},
   tempLogFilters: {},
@@ -82,75 +80,60 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   removeStagedFile: (fileName) => {
-    set(state => ({
-      stagedFiles: state.stagedFiles.filter(f => f.name !== fileName),
-    }));
+    set(state => ({ stagedFiles: state.stagedFiles.filter(f => f.name !== fileName) }));
   },
 
   processStagedFiles: async () => {
-    const { stagedFiles, setIsLoading } = get();
+    const { stagedFiles } = get();
     if (stagedFiles.length === 0) {
       return { success: false, message: "No files selected for processing." };
     }
     
-    setIsLoading(true);
+    set({ isLoading: true });
     
-    try {
-      let { logs, power, lightweightLogs } = await parseCsvFiles(stagedFiles);
+    let result: { success: boolean; message: string } = { success: false, message: "An unknown error occurred." };
 
-      // YENİ MANTIK: Eğer sadece log dosyası varsa, power verisini loglardan türet
-      if (logs.length > 0 && power.length === 0) {
-        power = aggregateLogDataToPowerCurve(logs);
+    await withMinimumLoading(async () => {
+      try {
+        let { logs, power, lightweightLogs } = await parseCsvFiles(stagedFiles);
+
+        if (logs.length > 0 && power.length === 0) {
+          power = aggregateLogDataToPowerCurve(logs);
+        }
+
+        if (logs.length === 0 && power.length === 0) {
+          result = { success: false, message: "Could not recognize file formats or files are empty. Please upload a valid Power Curve or Event Log file." };
+          return;
+        }
+        
+        const allTimestamps = [...power.map(p => p.timestamp), ...logs.map(l => l.timestamp)].filter(Boolean) as Date[];
+        let earliest = null, latest = null;
+        if (allTimestamps.length > 0) {
+            earliest = new Date(Math.min(...allTimestamps.map(d => d.getTime())));
+            latest = new Date(Math.max(...allTimestamps.map(d => d.getTime())));
+        }
+        
+        set({
+          logEvents: logs,
+          powerCurveData: power,
+          lightweightLogEvents: lightweightLogs,
+          stagedFiles: [],
+          dateRange: { start: earliest, end: latest },
+          metrics: { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 },
+          comments: [],
+          newCommentSelection: null,
+          logFilters: {}, 
+          tempLogFilters: {},
+        });
+        result = { success: true, message: "Files processed successfully." };
+      } catch (error) {
+        console.error("File processing error:", error);
+        result = { success: false, message: error instanceof Error ? error.message : "An unknown error occurred." };
       }
+    });
 
-      if (logs.length === 0 && power.length === 0) {
-        setIsLoading(false);
-        return { 
-          success: false, 
-          message: "Could not recognize file formats or files are empty. Please upload a valid Power Curve or Event Log file."
-        };
-      }
-      
-      const allTimestamps = [
-          ...power.map(p => p.timestamp), 
-          ...logs.map(l => l.timestamp)
-        ].filter(Boolean) as Date[];
-
-      let earliest = null, latest = null;
-      if (allTimestamps.length > 0) {
-          earliest = new Date(Math.min(...allTimestamps.map(d => d.getTime())));
-          latest = new Date(Math.max(...allTimestamps.map(d => d.getTime())));
-      }
-      
-      const newLegendSelected: Record<string, boolean> = {
-        'Power (kW)': true,
-        'Expected Power (kW)': true,
-        'Wind Speed (m/s)': true,
-        'Fault': true,
-        'Safety Critical Fault': true,
-      };
-
-      set({
-        logEvents: logs,
-        powerCurveData: power,
-        lightweightLogEvents: lightweightLogs,
-        stagedFiles: [],
-        dateRange: { start: earliest, end: latest },
-        metrics: { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 },
-        legendSelected: newLegendSelected,
-        comments: [],
-        newCommentSelection: null,
-        logFilters: {}, 
-        tempLogFilters: {},
-      });
-
-      setIsLoading(false);
-      return { success: true, message: "Files processed successfully." };
-    } catch (error) {
-      console.error("File processing error:", error);
-      setIsLoading(false);
-      return { success: false, message: error instanceof Error ? error.message : "An unknown error occurred." };
-    }
+    set({ isLoading: false });
+    return result;
   },
 
   setDateRange: (range) => set({ dateRange: range }),
@@ -160,12 +143,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setNewCommentSelection: (selection) => set({ newCommentSelection: selection }),
   toggleTheme: () => set(state => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
   setIsLoading: (loading) => set({ isLoading: loading }),
-
-  // Filtreleme Eylemleri
-  openFilterModal: () => set(state => ({
-    isFilterModalOpen: true,
-    tempLogFilters: state.logFilters,
-  })),
+  openFilterModal: () => set(state => ({ isFilterModalOpen: true, tempLogFilters: state.logFilters })),
   closeFilterModal: () => set({ isFilterModalOpen: false }),
   setTempLogFilters: (filters) => set({ tempLogFilters: filters }),
   applyLogFilters: () => set(state => ({ logFilters: state.tempLogFilters })),

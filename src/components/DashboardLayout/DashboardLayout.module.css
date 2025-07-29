@@ -18,6 +18,18 @@
   align-items: center;
 }
 
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerLogo {
+  /* DEĞİŞTİ: Logonun yüksekliğini 32px'den 64px'e çıkardık. */
+  height: 64px;
+  width: auto;
+}
+
 .headerButtons {
   display: flex;
   align-items: center;
@@ -31,7 +43,8 @@
   font-weight: 600;
 }
 
-/* YENİ: Yeni grafik satırı için stiller */
+/* ... dosyanın geri kalanı aynı ... */
+
 .chartsRow {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -46,7 +59,6 @@
   width: 100%;
 }
 
-/* Ana kontrol bölümü, içindeki sıraları dikey hizalar */
 .topControlsSection {
   display: flex;
   flex-direction: column;
@@ -54,27 +66,23 @@
   margin-bottom: 16px;
 }
 
-/* KPI satırı güncellendi */
 .kpiRow {
   display: grid;
-  /* 5 KPI kartı + 1 buton alanı */
   grid-template-columns: repeat(5, 1fr) auto;
   gap: 16px;
   background-color: var(--color-background-secondary);
   padding: 20px;
   border-radius: 8px;
   box-shadow: var(--shadow-main);
-  align-items: stretch; /* Kartların ve butonun aynı yükseklikte olmasını sağlar */
+  align-items: stretch;
 }
 
-/* Butonu sarmalayan ve hizalayan konteyner */
 .buttonContainer {
   display: flex;
-  align-items: center; /* Butonu dikeyde ortala */
+  align-items: center;
   justify-content: flex-end;
 }
 
-/* Gizle/Göster butonu için stil güncellendi */
 .toggleButton {
   background: var(--color-background-hover);
   border: 1px solid var(--color-border);
@@ -84,11 +92,10 @@
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
-  flex-direction: column; /* Yazı ve oku alt alta hizala */
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 100px; /* Butonun çok daralmasını engelle */
-  /* height: 100% kaldırıldı, boyut padding ile kontrol ediliyor */
+  min-width: 100px;
 }
 
 .toggleButton:hover {
@@ -104,11 +111,9 @@
 
 .buttonArrow {
   font-size: 12px;
-  margin-top: 4px; /* Ok ile yazı arasına boşluk koy */
+  margin-top: 4px;
 }
 
-
-/* Kontrol satırı, iki bileşeni yan yana hizalar */
 .controlsRow {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -120,13 +125,12 @@
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
   .buttonContainer {
-    grid-column: -1; /* En sona atar */
+    grid-column: -1;
     justify-self: end;
   }
   .controlsRow {
     grid-template-columns: 1fr;
   }
-  /* YENİ: Daha küçük ekranlarda yeni grafikleri alt alta sırala */
   .chartsRow {
     grid-template-columns: 1fr;
   }
