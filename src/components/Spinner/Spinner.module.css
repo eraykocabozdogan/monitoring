@@ -15,32 +15,66 @@
 
 .spinnerContainer {
   position: relative;
-  width: 80px;
-  height: 80px;
+  /* Bu konteyner artık sadece bir referans noktası,
+     boyutu resimlerin kendisinden gelecek. */
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* YENİ: Hem arka plan hem de pervane resimleri için ortak stil */
-.logoBackground,
-.logoBlades {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  /* DEĞİŞTİ: Bu satır, resmin en-boy oranını koruyarak "basık" görünmesini engeller. */
+.logoBackground {
+  /*
+    ===================================================================
+    1. ARKA PLAN BOYUTU AYARI
+    ===================================================================
+    Aşağıdaki `width` ve `height` değerlerini değiştirerek
+    sadece arkaplanın boyutunu ayarlayabilirsiniz.
+  */
+  width: 250px; /* <-- ARKA PLAN GENİŞLİĞİNİ BURADAN DEĞİŞTİRİN */
+  height: 250px; /* <-- ARKA PLAN YÜKSEKLİĞİNİ BURADAN DEĞİŞTİRİN */
   object-fit: contain;
 }
 
 .logoBlades {
-  animation: spin 1.5s linear infinite;
-  /* DEĞİŞTİ: Bu satır, pervanenin tam kendi merkezi etrafında dönmesini sağlar. */
+  position: absolute;
+  object-fit: contain;
   transform-origin: center;
+
+  /*
+    ===================================================================
+    2. BIÇAK BOYUTU AYARI
+    ===================================================================
+    Aşağıdaki `width` ve `height` değerlerini değiştirerek
+    sadece bıçakların boyutunu arkaplandan bağımsız olarak
+    ayarlayabilirsiniz.
+  */
+  width: 90px; /* <-- BIÇAK GENİŞLİĞİNİ BURADAN DEĞİŞTİRİN */
+  height: 90px; /* <-- BIÇAK YÜKSEKLİĞİNİ BURADAN DEĞİŞTİRİN */
+
+  /*
+    ===================================================================
+    3. BIÇAK DÖNME HIZI AYARI
+    ===================================================================
+    Aşağıdaki `1s` değerini değiştirerek dönme hızını ayarlayın.
+    - Daha KÜÇÜK değer (örn: 0.8s) -> DAHA HIZLI döner.
+    - Daha BÜYÜK değer (örn: 2s) -> DAHA YAVAŞ döner.
+  */
+  animation: spin 0.3s linear infinite; /* <-- DÖNME HIZINI BURADAN AYARLAYIN */
+
+  /*
+    ===================================================================
+    4. BIÇAK YERLEŞİM (HİZALAMA) AYARI
+    ===================================================================
+    Gerekirse `top` ve `left` değerlerini değiştirerek
+    bıçakların konumunu ayarlayabilirsiniz.
+  */
+  top: 55px;
+  left: 70px;
 }
 
 .text {
   color: var(--color-text-primary);
-  margin-top: 20px;
+  margin-top: 30px;
   font-size: 18px;
   font-weight: 500;
 }
