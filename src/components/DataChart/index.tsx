@@ -5,7 +5,6 @@ import { format, getMinutes, getHours, getDate, getMonth, getYear } from 'date-f
 import type { PowerCurvePoint, TurbineEvent } from '../../types/index';
 import styles from './DataChart.module.css';
 
-// Tooltip için olayları gruplamak üzere Map anahtarı oluşturur (Yıl-Ay-Gün-Saat-Dakika)
 const getTimeBucketKey = (date: Date): string => {
     return `${getYear(date)}-${getMonth(date)}-${getDate(date)}-${getHours(date)}-${getMinutes(date)}`;
 };
@@ -18,10 +17,8 @@ const DataChart: React.FC = () => {
     setDateRange,
     legendSelected,
     setLegendSelected,
-    newCommentSelection,
-    setNewCommentSelection,
     theme,
-    isTooltipEnabled,
+    // KALDIRILDI: newCommentSelection ve setNewCommentSelection artık burada kullanılmıyor
   } = useAppStore();
 
   const chartRef = useRef<ReactECharts | null>(null);
@@ -54,9 +51,7 @@ const DataChart: React.FC = () => {
         if (!logTime) return 0;
         const time = logTime.getTime();
         if (powerMap.has(time)) return powerMap.get(time)!.power;
-
         if (powerCurveData.length === 0) return 0;
-
         const closestPoint = powerCurveData.reduce((prev, curr) =>
             Math.abs(curr.timestamp!.getTime() - time) < Math.abs(prev.timestamp!.getTime() - time) ? curr : prev
         );
@@ -80,14 +75,6 @@ const DataChart: React.FC = () => {
     return { faultEvents, safetyCriticalFaultEvents };
   }, [logEvents, powerCurveData]);
 
-
-  useEffect(() => {
-    if (!newCommentSelection && chartRef.current) {
-      const echartsInstance = chartRef.current.getEchartsInstance();
-      echartsInstance.dispatchAction({ type: 'brush', areas: [] });
-    }
-  }, [newCommentSelection]);
-
   const series = useMemo(() => {
     const colors = {
         power: theme === 'dark' ? '#f43f5e' : '#a855f7',
@@ -98,15 +85,13 @@ const DataChart: React.FC = () => {
         criticalFault: '#b91c1c'
     };
 
-    // --- DİNAMİK GRUPLAMA MANTIĞI ---
     let displayData = powerCurveData;
-    const maxPoints = 200; // Ekranda görünecek maksimum nokta/bar sayısı
+    const maxPoints = 200;
     
     if (dateRange.start && dateRange.end) {
         const visibleDuration = dateRange.end.getTime() - dateRange.start.getTime();
         const oneDay = 24 * 60 * 60 * 1000;
 
-        // Sadece 1 günden daha geniş aralıklarda gruplama yap
         if (visibleDuration > oneDay && powerCurveData.length > maxPoints) {
             const interval = visibleDuration / maxPoints;
             const buckets = new Map<number, { powerSum: number; refPowerSum: number; windSum: number; count: number }>();
@@ -139,47 +124,20 @@ const DataChart: React.FC = () => {
             displayData = aggregatedData.sort((a, b) => a.timestamp!.getTime() - b.timestamp!.getTime());
         }
     }
-    // --- GRUPLAMA MANTIĞI SONU ---
 
     const baseSeries = [
-      {
-        name: 'Power (kW)',
-        type: 'bar',
-        barMaxWidth: 30, // Geniş barlar için
-        barGap: '-100%', 
-        itemStyle: { opacity: 0.9, color: colors.power },
-        z: 3,
-        data: displayData.map(event => [event.timestamp!.getTime(), event.power])
-      },
-      {
-        name: 'Wind Speed (m/s)',
-        type: 'line',
-        yAxisIndex: 1,
-        showSymbol: false,
-        lineStyle: { width: 1.5, color: colors.windLine, opacity: 0.75 },
-        areaStyle: { color: colors.windArea, opacity: 0.5 },
-        itemStyle: { opacity: 1 },
-        z: 1,
-        data: displayData.map(event => [event.timestamp!.getTime(), event.windSpeed]) // Gruplanmış veriyi kullan
-      },
+      { name: 'Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.power }, z: 3, data: displayData.map(event => [event.timestamp!.getTime(), event.power]) },
+      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, lineStyle: { width: 1.5, color: colors.windLine, opacity: 0.75 }, areaStyle: { color: colors.windArea, opacity: 0.5 }, itemStyle: { opacity: 1 }, z: 1, data: displayData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
       { name: 'Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 1 }, data: processedSeriesData.faultEvents, zlevel: 10 },
       { name: 'Safety Critical Fault', type: 'scatter', symbol: 'diamond', symbolSize: 11, itemStyle: { color: colors.criticalFault, opacity: 1 }, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11 }
     ];
 
     if (hasRefPower) {
-      baseSeries.splice(1, 0, {
-        name: 'Expected Power (kW)',
-        type: 'bar',
-        barMaxWidth: 30,
-        barGap: '-100%',
-        itemStyle: { opacity: 0.9, color: colors.refPower },
-        z: 2,
-        data: displayData.map(event => [event.timestamp!.getTime(), event.refPower])
-      });
+      baseSeries.splice(1, 0, { name: 'Expected Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.refPower }, z: 2, data: displayData.map(event => [event.timestamp!.getTime(), event.refPower]) });
     }
 
     return baseSeries;
-  }, [powerCurveData, processedSeriesData, theme, hasRefPower, dateRange]); // dateRange'i bağımlılıklara ekliyoruz
+  }, [powerCurveData, processedSeriesData, theme, hasRefPower, dateRange]);
 
   const formatTooltip = useCallback((params: any) => {
     const tooltipTheme = {
@@ -199,7 +157,6 @@ const DataChart: React.FC = () => {
     }
 
     const hoverTime = new Date(firstParam.axisValue);
-
     const key = getTimeBucketKey(hoverTime);
     const eventsInBucket = eventsByTimeBucket.get(key) || [];
 
@@ -208,7 +165,7 @@ const DataChart: React.FC = () => {
         eventSummary = eventsInBucket.map(e => `<div style="margin-top: 4px;"><strong>${format(e.timestamp!, 'HH:mm:ss')} - ${e.eventType}:</strong><br>${e.description}</div>`).join('');
     }
 
-    const powerPoint = powerCurveData[firstParam.dataIndex];
+    const powerPoint = powerCurveData.find(p => p.timestamp?.getTime() === hoverTime.getTime());
     if (!powerPoint) return '';
 
     return `<div style="${baseStyle}"><strong>${format(hoverTime, 'yyyy-MM-dd HH:mm:ss')}</strong><br>Power: ${powerPoint.power.toFixed(2)} kW | Wind: ${powerPoint.windSpeed.toFixed(2)} m/s<hr style="${hrStyle}">${eventSummary}</div>`;
@@ -232,24 +189,13 @@ const DataChart: React.FC = () => {
 
   const handleLegendSelectChanged = useCallback((e: any) => setLegendSelected(e.selected), [setLegendSelected]);
 
-  const handleBrushSelected = useCallback((params: any) => {
-    const areas = params.areas;
-    if (!areas || areas.length === 0) {
-      setNewCommentSelection(null);
-      return;
-    }
-    const area = areas[0];
-    if (area && area.coordRange) {
-      const [start, end] = area.coordRange;
-      setNewCommentSelection({ start, end: start === end ? undefined : end });
-    }
-  }, [setNewCommentSelection]);
+  // KALDIRILDI: handleBrushSelected fonksiyonu tamamen silindi.
 
   const onEvents = useMemo(() => ({
     datazoom: handleDataZoom,
     legendselectchanged: handleLegendSelectChanged,
-    brushselected: handleBrushSelected,
-  }), [handleDataZoom, handleLegendSelectChanged, handleBrushSelected]);
+    // KALDIRILDI: brushselected olayı silindi.
+  }), [handleDataZoom, handleLegendSelectChanged]);
 
   const option = useMemo(() => {
     const legendData = ['Power (kW)', 'Wind Speed (m/s)', 'Fault', 'Safety Critical Fault'];
@@ -259,14 +205,7 @@ const DataChart: React.FC = () => {
 
     return {
       tooltip: {
-        show: isTooltipEnabled,
-        trigger: 'axis',
-        formatter: formatTooltip,
-        axisPointer: { type: 'cross', animation: false, label: { backgroundColor: '#505765' } },
-        backgroundColor: 'transparent',
-        borderColor: 'transparent',
-        textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' },
-        extraCssText: 'box-shadow: none;'
+        trigger: 'axis', formatter: formatTooltip, axisPointer: { type: 'cross', animation: false, label: { backgroundColor: '#505765' } }, backgroundColor: 'transparent', borderColor: 'transparent', textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' }, extraCssText: 'box-shadow: none;'
       },
       legend: { data: legendData, selected: legendSelected, textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' } },
       grid: { left: '5%', right: '5%', bottom: '15%', containLabel: true },
@@ -278,9 +217,9 @@ const DataChart: React.FC = () => {
       dataZoom: [{ type: 'inside', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime() }, { type: 'slider', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime(), textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' } }],
       series: series,
       animation: false,
-      brush: { toolbox: ['lineX', 'clear'], xAxisIndex: 'all', throttleType: 'debounce', throttleDelay: 500, },
+      // KALDIRILDI: `brush` özelliği ve `toolbox` tamamen kaldırıldı.
     };
-  }, [dateRange, legendSelected, series, formatTooltip, theme, hasRefPower, isTooltipEnabled]);
+  }, [dateRange, legendSelected, series, formatTooltip, theme, hasRefPower]);
 
   if (powerCurveData.length === 0) {
     return <div className={`${styles.container} ${styles.emptyState}`}>Please upload a Power Curve or Event Log file to see the chart.</div>;
