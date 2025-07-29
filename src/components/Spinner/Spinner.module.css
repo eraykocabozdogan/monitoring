@@ -13,29 +13,29 @@
   backdrop-filter: blur(4px);
 }
 
-/* YENİ: İki resmi bir arada tutan konteyner */
 .spinnerContainer {
-  position: relative; /* İçerideki resimleri konumlandırmak için */
-  width: 80px; /* Logonuza göre boyutu ayarlayın */
-  height: 80px; /* Logonuza göre boyutu ayarlayın */
+  position: relative;
+  width: 80px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* YENİ: Arka plan resmi (sabit) */
-.logoBackground {
+/* YENİ: Hem arka plan hem de pervane resimleri için ortak stil */
+.logoBackground,
+.logoBlades {
   position: absolute;
   width: 100%;
   height: 100%;
+  /* DEĞİŞTİ: Bu satır, resmin en-boy oranını koruyarak "basık" görünmesini engeller. */
+  object-fit: contain;
 }
 
-/* YENİ: Dönecek olan pervaneler */
 .logoBlades {
-  position: absolute;
-  width: 100%; /* Boyutları arka planla eşleşmeli */
-  height: 100%; /* Boyutları arka planla eşleşmeli */
   animation: spin 1.5s linear infinite;
+  /* DEĞİŞTİ: Bu satır, pervanenin tam kendi merkezi etrafında dönmesini sağlar. */
+  transform-origin: center;
 }
 
 .text {
