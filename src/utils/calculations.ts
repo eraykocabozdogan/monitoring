@@ -86,7 +86,6 @@ export const calculateMetrics = (
     logs: LightweightLogEvent[],
     dateRange: { start: Date | null, end: Date | null }
 ): Metrics => {
-
     const emptyMetrics: Metrics = { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 };
     if (!dateRange.start || !dateRange.end || logs.length < 2) {
         return emptyMetrics;

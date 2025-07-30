@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useFilteredLogData } from './hooks/useFilteredLogData';
 import { calculateMetrics } from './utils/calculations';
@@ -24,18 +24,33 @@ function App() {
   const debouncedDateRange = useDebounce(dateRange, 200);
   const filteredLogsForTable = useFilteredLogData();
 
+  // DÜZELTME: lightweightLogEvents'i tarih aralığına göre burada filtreliyoruz.
+  const filteredLogsForMetrics = useMemo(() => {
+    if (!debouncedDateRange.start || !debouncedDateRange.end) {
+      return [];
+    }
+    const startTime = debouncedDateRange.start.getTime();
+    const endTime = debouncedDateRange.end.getTime();
+    return lightweightLogEvents.filter(log => {
+      if (!log.timestamp) return false;
+      const eventTime = log.timestamp.getTime();
+      return eventTime >= startTime && eventTime <= endTime;
+    });
+  }, [lightweightLogEvents, debouncedDateRange]);
+
   useEffect(() => {
     document.body.dataset.theme = theme;
   }, [theme]);
 
   useEffect(() => {
-    if (lightweightLogEvents.length > 0 && debouncedDateRange.start && debouncedDateRange.end) {
-      const newMetrics = calculateMetrics(lightweightLogEvents, debouncedDateRange);
+    // DÜZELTME: Artık filtrelenmiş logları ('filteredLogsForMetrics') kullanıyoruz.
+    if (filteredLogsForMetrics.length > 0 && debouncedDateRange.start && debouncedDateRange.end) {
+      const newMetrics = calculateMetrics(filteredLogsForMetrics, debouncedDateRange);
       setMetrics(newMetrics);
     } else {
       setMetrics({ operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 });
     }
-  }, [lightweightLogEvents, debouncedDateRange, setMetrics]);
+  }, [filteredLogsForMetrics, debouncedDateRange, setMetrics]); // Bağımlılık güncellendi
 
   return (
     <DashboardLayout>

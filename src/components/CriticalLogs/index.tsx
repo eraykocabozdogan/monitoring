@@ -1,5 +1,4 @@
 import React, { memo } from 'react';
-import { format } from 'date-fns';
 import { useAppStore } from '../../store/useAppStore';
 import type { TurbineEvent } from '../../types/index.js';
 import styles from './CriticalLogs.module.css';
@@ -12,10 +11,15 @@ interface CriticalLogsProps {
 
 const LogRow = memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: TurbineEvent[] }) => {
   const log = data[index];
+  
+  // DÜZELTME: Zamanı, tarayıcının yerel saatine çevirmeden, doğrudan UTC olarak gösteriyoruz.
+  const dateStr = log.timestamp ? log.timestamp.toISOString().slice(0, 10) : '--';
+  const timeStr = log.timestamp ? log.timestamp.toISOString().slice(11, 19) : '--';
+
   return (
     <div className={styles.tableRow} style={style}>
-      <div className={styles.tableCell}>{log.timestamp ? format(log.timestamp, 'MMM d, yyyy') : '--'}</div>
-      <div className={styles.tableCell}>{log.timestamp ? format(log.timestamp, 'HH:mm:ss') : '--'}</div>
+      <div className={styles.tableCell}>{dateStr}</div>
+      <div className={styles.tableCell}>{timeStr}</div>
       <div className={styles.tableCell}>{log.status || '--'}</div>
       <div className={styles.tableCell}>{log.name || '--'}</div>
       <div className={styles.tableCell}>{log.eventType || '--'}</div>
@@ -35,7 +39,7 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
 
       <div className={styles.logsCard}>
         <div className={styles.header}>
-          <h2 className={styles.title}>Critical Logs ({logs.length})</h2>
+          <h2 className={styles.title}>Logs ({logs.length})</h2>
           <button onClick={openFilterModal} className={styles.filterButton}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
             <span>Filter</span>

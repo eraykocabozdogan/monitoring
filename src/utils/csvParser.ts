@@ -31,6 +31,15 @@ interface ParsedFileResult {
   lightweightData?: LightweightLogEvent[];
 }
 
+// DÜZELTME: Zaman damgası dizesini her zaman geçerli bir ISO formatına (YYYY-MM-DDTHH:mm:ss.sssZ) dönüştüren fonksiyon
+const createUTCDate = (dateString: string): Date | null => {
+    if (!dateString || typeof dateString !== 'string') return null;
+    // "2024-02-17 03:14:35.050" -> "2024-02-17T03:14:35.050Z"
+    const isoString = dateString.trim().replace(' ', 'T') + 'Z';
+    const date = new Date(isoString);
+    return isNaN(date.getTime()) ? null : date;
+}
+
 const parseFile = (file: File): Promise<ParsedFileResult> => {
   return new Promise((resolve, reject) => {
     Papa.parse<Record<string, string>>(file, {
@@ -46,25 +55,28 @@ const parseFile = (file: File): Promise<ParsedFileResult> => {
         }
         
         if (fileType === 'power') {
-          const powerData = results.data.map((row): PowerCurvePoint => {
+          const powerData = results.data.map((row): PowerCurvePoint | null => {
+            const timestamp = createUTCDate(row['TimeStamp']);
+            if (!timestamp) return null;
+
             const powerValue = row['Power (kW)'] ? String(row['Power (kW)']).replace(/,/g, '') : '0';
             const refPowerValue = row['Ref Power (kW)'] ? String(row['Ref Power (kW)']).replace(/,/g, '') : '0';
 
             return {
-              timestamp: new Date(row['TimeStamp'].replace(' ', 'T') + 'Z'),
+              timestamp,
               windSpeed: parseFloat(row['Actual Wind Speed (m/s)']) || 0,
               power: parseFloat(powerValue) || 0,
               refPower: parseFloat(refPowerValue) || 0,
             };
-          }).filter(d => d.timestamp && !isNaN(d.timestamp.getTime()));
+          }).filter((d): d is PowerCurvePoint => d !== null);
           resolve({ type: 'power', data: powerData });
         } else if (fileType === 'log') {
           const logData: TurbineEvent[] = [];
           const lightweightLogData: LightweightLogEvent[] = [];
 
           results.data.forEach((row) => {
-            const timestamp = new Date(row['Timestamp'].replace(' ', 'T') + 'Z');
-            if (timestamp && !isNaN(timestamp.getTime())) {
+            const timestamp = createUTCDate(row['Timestamp']);
+            if (timestamp) {
               const powerValue = row['Power (kW)'] ? String(row['Power (kW)']).replace(/,/g, '') : undefined;
 
               logData.push({

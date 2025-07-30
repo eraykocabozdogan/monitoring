@@ -201,6 +201,7 @@ const DataChart: React.FC = () => {
     }
 
     return {
+      useUTC: true, // DÜZELTME: Bu satır, ECharts'ın saat dilimi dönüşümü yapmasını engeller.
       tooltip: {
         trigger: 'axis', formatter: formatTooltip, axisPointer: { type: 'cross', animation: false, label: { backgroundColor: '#505765' } }, backgroundColor: 'transparent', borderColor: 'transparent', textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' }, extraCssText: 'box-shadow: none;'
       },

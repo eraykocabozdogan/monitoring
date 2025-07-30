@@ -34,7 +34,8 @@ const WeeklyKpiChart: React.FC = () => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-            formatter: (params: { value: number }) => `${currentKpi.name}: ${params.value.toFixed(2)}`,
+      // DÜZELTME: 'params' artık bir dizi olarak doğru şekilde işleniyor.
+      formatter: (params: any[]) => `${currentKpi.name}: ${params[0].value.toFixed(2)}%`,
     },
     grid: {
       left: '3%',
@@ -89,7 +90,7 @@ const WeeklyKpiChart: React.FC = () => {
         <button onClick={() => setSelectedKpi('reliability')} className={selectedKpi === 'reliability' ? styles.active : ''}>Reliability</button>
       </div>
       <div className={styles.chartArea}>
-        <ReactECharts option={option} style={{ height: '100%', width: '100%' }} />
+        <ReactECharts option={option} style={{ height: '100%', width: '100%' }} notMerge={true} />
       </div>
     </div>
   );
