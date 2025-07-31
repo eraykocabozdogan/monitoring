@@ -54,7 +54,7 @@
 
 .bottomSection {
   display: grid;
-  grid-template-columns: 3fr 1fr;
+  grid-template-columns: 2.2fr 0.8fr;
   gap: 16px;
   width: 100%;
 }
@@ -138,7 +138,7 @@
 
 @media (max-width: 1024px) {
   .bottomSection {
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1.7fr 0.8fr;
   }
 }
 

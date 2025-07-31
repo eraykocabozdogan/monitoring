@@ -41,21 +41,11 @@ const Comments: React.FC = () => {
     return `Point: ${startFormatted}`;
   };
 
-  const getSelectionInfoText = () => {
-      if (newCommentSelection) {
-          return `Selection: ${formatSelection(newCommentSelection)}`;
-      }
-      return "Adding a general comment. Select a point or range on the chart to link the comment.";
-  }
-
   return (
     <div className={styles.container}>
       <h3 className={styles.title}>Analyst Comments</h3>
       
       <div className={styles.addCommentSection}>
-        <div className={styles.selectionInfo}>
-            {getSelectionInfoText()}
-        </div>
         <textarea
           value={commentText}
           onChange={(e) => setCommentText(e.target.value)}
