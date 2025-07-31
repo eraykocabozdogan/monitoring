@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import type { CommentSelection } from '../../types';
 
 const Comments: React.FC = () => {
-  const { comments, addComment, newCommentSelection, setNewCommentSelection } = useAppStore();
+  const { comments, addComment, newCommentSelection, setNewCommentSelection, chartPins, chartIntervals } = useAppStore();
   const [commentText, setCommentText] = useState('');
 
   const handleAddComment = () => {
@@ -46,6 +46,21 @@ const Comments: React.FC = () => {
       <h3 className={styles.title}>Analyst Comments</h3>
       
       <div className={styles.addCommentSection}>
+        {(chartPins.length > 0 || chartIntervals.length > 0) && (
+          <div className={styles.selectionsPreview}>
+            <h4>Selected Chart Elements (will be saved with comment):</h4>
+            {chartPins.map(pin => (
+              <div key={pin.id} className={styles.previewItem}>
+                📍 Pin: {format(pin.timestamp, 'yyyy-MM-dd HH:mm:ss')} - {pin.power.toFixed(2)} kW
+              </div>
+            ))}
+            {chartIntervals.map(interval => (
+              <div key={interval.id} className={styles.previewItem}>
+                📊 Interval: {format(interval.startTimestamp, 'MMM d HH:mm')} - {format(interval.endTimestamp, 'MMM d HH:mm')}
+              </div>
+            ))}
+          </div>
+        )}
         <textarea
           value={commentText}
           onChange={(e) => setCommentText(e.target.value)}
@@ -69,6 +84,31 @@ const Comments: React.FC = () => {
           [...comments].reverse().map(comment => (
             <div key={comment.id} className={styles.commentItem}>
               <p className={styles.commentText}>{comment.text}</p>
+              
+              {(comment.pins && comment.pins.length > 0) && (
+                <div className={styles.commentSelections}>
+                  <h5>Chart Pins:</h5>
+                  {comment.pins.map(pin => (
+                    <div key={pin.id} className={styles.selectionDetail}>
+                      📍 {format(pin.timestamp, 'yyyy-MM-dd HH:mm:ss')} - Power: {pin.power.toFixed(2)} kW, Wind: {pin.windSpeed.toFixed(2)} m/s
+                      {pin.expectedPower && `, Expected: ${pin.expectedPower.toFixed(2)} kW`}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {(comment.intervals && comment.intervals.length > 0) && (
+                <div className={styles.commentSelections}>
+                  <h5>Chart Intervals:</h5>
+                  {comment.intervals.map(interval => (
+                    <div key={interval.id} className={styles.selectionDetail}>
+                      📊 {format(interval.startTimestamp, 'MMM d HH:mm')} - {format(interval.endTimestamp, 'MMM d HH:mm')} 
+                      ({Math.round((interval.endTimestamp.getTime() - interval.startTimestamp.getTime()) / (1000 * 60))} min)
+                    </div>
+                  ))}
+                </div>
+              )}
+              
               <div className={styles.commentMeta}>
                 <span>{formatSelection(comment.selection)}</span>
                 <span>{format(comment.createdAt, 'MMM d, yyyy HH:mm')}</span>

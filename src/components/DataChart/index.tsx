@@ -2,11 +2,15 @@ import React, { useRef, useMemo, useCallback, memo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store/useAppStore';
 import { format, getMinutes, getHours, getDate, getMonth, getYear } from 'date-fns';
-import type { PowerCurvePoint, TurbineEvent } from '../../types/index';
+import type { PowerCurvePoint, TurbineEvent, ChartPin, ChartInterval } from '../../types/index';
 import styles from './DataChart.module.css';
 
 const getTimeBucketKey = (date: Date): string => {
     return `${getYear(date)}-${getMonth(date)}-${getDate(date)}-${getHours(date)}-${getMinutes(date)}`;
+};
+
+const generateId = (): string => {
+  return Math.random().toString(36).substr(2, 9);
 };
 
 const DataChart: React.FC = () => {
@@ -19,6 +23,17 @@ const DataChart: React.FC = () => {
     setLegendSelected,
     theme,
     setSelectedChartTimestamp,
+    chartMode,
+    setChartMode,
+    chartPins,
+    chartIntervals,
+    pendingInterval,
+    addChartPin,
+    removeChartPin,
+    addChartInterval,
+    removeChartInterval,
+    setPendingInterval,
+    clearChartSelections,
   } = useAppStore();
 
   const chartRef = useRef<ReactECharts | null>(null);
@@ -136,6 +151,34 @@ const DataChart: React.FC = () => {
       baseSeries.splice(1, 0, { name: 'Expected Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.refPower }, z: 2, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.refPower]) });
     }
 
+    // Add chart pins as scatter points
+    if (chartPins.length > 0) {
+      baseSeries.push({
+        name: 'Chart Pins',
+        type: 'scatter',
+        symbol: 'pin',
+        symbolSize: 20,
+        itemStyle: { color: '#3b82f6', opacity: 1 },
+        data: chartPins.map(pin => [pin.timestamp.getTime(), pin.power]),
+        zlevel: 15,
+        triggerEvent: false
+      } as any);
+    }
+
+    // Add pending interval start marker
+    if (pendingInterval) {
+      baseSeries.push({
+        name: 'Pending Interval Start',
+        type: 'scatter',
+        symbol: 'rect',
+        symbolSize: 15,
+        itemStyle: { color: '#10b981', opacity: 0.8 },
+        data: [[pendingInterval.startTimestamp.getTime(), 0]],
+        zlevel: 12,
+        triggerEvent: false
+      } as any);
+    }
+
     return baseSeries;
   }, [powerCurveData, processedSeriesData, theme, hasRefPower, dateRange]);
 
@@ -199,19 +242,14 @@ const DataChart: React.FC = () => {
   const handleLegendSelectChanged = useCallback((e: { selected: Record<string, boolean> }) => setLegendSelected(e.selected), [setLegendSelected]);
 
   const handleChartClick = useCallback((params: any) => {
+    let clickedTimestamp: Date | null = null;
+    
+    // Extract timestamp from click
     if (params.data && Array.isArray(params.data) && params.data[0]) {
-      const timestamp = new Date(params.data[0]);
-      setSelectedChartTimestamp(timestamp);
-      return;
-    } 
-    
-    if (params.value && Array.isArray(params.value) && params.value[0]) {
-      const timestamp = new Date(params.value[0]);
-      setSelectedChartTimestamp(timestamp);
-      return;
-    }
-    
-    if (chartRef.current && params.event) {
+      clickedTimestamp = new Date(params.data[0]);
+    } else if (params.value && Array.isArray(params.value) && params.value[0]) {
+      clickedTimestamp = new Date(params.value[0]);
+    } else if (chartRef.current && params.event) {
       try {
         const echartsInstance = chartRef.current.getEchartsInstance();
         const isReady = echartsInstance.isDisposed() === false;
@@ -220,23 +258,19 @@ const DataChart: React.FC = () => {
         const pointInGrid = echartsInstance.convertFromPixel('grid', [params.event.offsetX, params.event.offsetY]);
         
         if (pointInGrid && pointInGrid[0] !== undefined && !isNaN(pointInGrid[0])) {
-          const timestamp = new Date(pointInGrid[0]);
-          setSelectedChartTimestamp(timestamp);
-          return;
+          clickedTimestamp = new Date(pointInGrid[0]);
         } else {
           if (dateRange.start && dateRange.end && params.event.offsetX !== undefined) {
             const chartWidth = echartsInstance.getWidth();
-            const gridLeft = chartWidth * 0.05;
-            const gridRight = chartWidth * 0.05;
+            const gridLeft = chartWidth * 0.03;
+            const gridRight = chartWidth * 0.03;
             const gridWidth = chartWidth - gridLeft - gridRight;
             const relativeX = (params.event.offsetX - gridLeft) / gridWidth;
             
             if (relativeX >= 0 && relativeX <= 1) {
               const timeRange = dateRange.end.getTime() - dateRange.start.getTime();
               const clickedTime = dateRange.start.getTime() + (relativeX * timeRange);
-              const timestamp = new Date(clickedTime);
-              setSelectedChartTimestamp(timestamp);
-              return;
+              clickedTimestamp = new Date(clickedTime);
             }
           }
         }
@@ -244,7 +278,51 @@ const DataChart: React.FC = () => {
         // Sessizce devam et
       }
     }
-  }, [setSelectedChartTimestamp, dateRange]);
+
+    if (!clickedTimestamp) return;
+
+    // Handle different chart modes
+    if (chartMode === 'pin') {
+      // Find the closest power data point for this timestamp
+      const closestPowerPoint = powerCurveData.reduce((prev, curr) => {
+        if (!prev.timestamp || !curr.timestamp) return prev;
+        return Math.abs(curr.timestamp.getTime() - clickedTimestamp!.getTime()) < 
+               Math.abs(prev.timestamp.getTime() - clickedTimestamp!.getTime()) ? curr : prev;
+      });
+
+      if (closestPowerPoint.timestamp) {
+        const pin: ChartPin = {
+          id: generateId(),
+          timestamp: clickedTimestamp,
+          power: closestPowerPoint.power,
+          windSpeed: closestPowerPoint.windSpeed,
+          expectedPower: closestPowerPoint.refPower > 0 ? closestPowerPoint.refPower : undefined,
+        };
+        addChartPin(pin);
+      }
+    } else if (chartMode === 'interval') {
+      if (!pendingInterval) {
+        // Start new interval
+        setPendingInterval({ startTimestamp: clickedTimestamp });
+      } else {
+        // Complete interval
+        const startTime = pendingInterval.startTimestamp.getTime();
+        const endTime = clickedTimestamp.getTime();
+        
+        const interval: ChartInterval = {
+          id: generateId(),
+          startTimestamp: startTime < endTime ? pendingInterval.startTimestamp : clickedTimestamp,
+          endTimestamp: startTime < endTime ? clickedTimestamp : pendingInterval.startTimestamp,
+        };
+        
+        addChartInterval(interval);
+        setPendingInterval(null);
+      }
+    } else {
+      // Normal mode - just set selected timestamp
+      setSelectedChartTimestamp(clickedTimestamp);
+    }
+  }, [setSelectedChartTimestamp, dateRange, chartMode, pendingInterval, powerCurveData, addChartPin, addChartInterval, setPendingInterval]);
 
   const onEvents = useMemo(() => ({
     datazoom: handleDataZoom,
@@ -258,13 +336,28 @@ const DataChart: React.FC = () => {
       legendData.splice(1, 0, 'Expected Power (kW)');
     }
 
+    // Create mark areas for intervals
+    const markAreas = chartIntervals.map(interval => ({
+      itemStyle: {
+        color: 'rgba(16, 185, 129, 0.2)',
+        borderColor: '#10b981',
+        borderWidth: 1,
+      },
+      data: [
+        [
+          { xAxis: interval.startTimestamp.getTime(), yAxis: 'min' },
+          { xAxis: interval.endTimestamp.getTime(), yAxis: 'max' }
+        ]
+      ]
+    }));
+
     return {
       useUTC: true, // DÜZELTME: Bu satır, ECharts'ın saat dilimi dönüşümü yapmasını engeller.
       tooltip: {
         trigger: 'axis', formatter: formatTooltip, axisPointer: { type: 'cross', animation: false, label: { backgroundColor: '#505765' } }, backgroundColor: 'transparent', borderColor: 'transparent', textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' }, extraCssText: 'box-shadow: none;'
       },
       legend: { data: legendData, selected: legendSelected, textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' } },
-      grid: { left: '5%', right: '5%', bottom: '15%', containLabel: true },
+      grid: { left: '3%', right: '3%', bottom: '15%', containLabel: true },
       xAxis: { 
         type: 'time', 
         axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, 
@@ -272,14 +365,30 @@ const DataChart: React.FC = () => {
         triggerEvent: true // X ekseni tıklamalarını etkinleştir
       },
       yAxis: [
-        { type: 'value', name: 'Power (kW)', min: 0, nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, splitLine: { lineStyle: { color: [theme === 'dark' ? '#4b5563' : '#e5e7eb'] } } },
+        { 
+          type: 'value', 
+          name: 'Power (kW)', 
+          min: 0, 
+          nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, 
+          axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, 
+          axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, 
+          splitLine: { lineStyle: { color: [theme === 'dark' ? '#4b5563' : '#e5e7eb'] } },
+          // Add markArea for intervals
+          ...(markAreas.length > 0 && {
+            markArea: {
+              silent: true,
+              data: markAreas.flatMap(area => area.data),
+              itemStyle: markAreas[0]?.itemStyle
+            }
+          })
+        },
         { type: 'value', name: 'Wind Speed (m/s)', nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, splitLine: { show: false } }
       ],
       dataZoom: [{ type: 'inside', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime() }, { type: 'slider', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime(), textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' } }],
       series: series,
       animation: false,
     };
-  }, [dateRange, legendSelected, series, formatTooltip, theme, hasRefPower]);
+  }, [dateRange, legendSelected, series, formatTooltip, theme, hasRefPower, chartIntervals]);
 
   if (powerCurveData.length === 0) {
     return <div className={`${styles.container} ${styles.emptyState}`}>Please upload a Power Curve or Event Log file to see the chart.</div>;
@@ -287,7 +396,113 @@ const DataChart: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <ReactECharts key={theme + hasRefPower} ref={chartRef} option={option} style={{ height: '100%', width: '100%' }} onEvents={onEvents} notMerge={true} lazyUpdate={true} />
+      <div className={styles.header}>
+        <h3>Data Chart</h3>
+        <div className={styles.controls}>
+          <button
+            className={`${styles.controlButton} ${chartMode === 'interval' ? styles.active : ''}`}
+            onClick={() => setChartMode(chartMode === 'interval' ? 'normal' : 'interval')}
+          >
+            {chartMode === 'interval' ? (pendingInterval ? 'Click to end interval' : 'Click to start interval') : 'Select Interval'}
+          </button>
+          <button
+            className={`${styles.controlButton} ${chartMode === 'pin' ? styles.active : ''}`}
+            onClick={() => setChartMode(chartMode === 'pin' ? 'normal' : 'pin')}
+          >
+            Add Pin
+          </button>
+          <button
+            className={styles.controlButton}
+            onClick={clearChartSelections}
+            disabled={chartPins.length === 0 && chartIntervals.length === 0}
+          >
+            Clear Selections
+          </button>
+        </div>
+      </div>
+      
+      <div className={styles.mainContent}>
+        <div className={styles.chartWrapper}>
+          <ReactECharts 
+            key={theme + hasRefPower} 
+            ref={chartRef} 
+            option={option} 
+            style={{ height: '100%', width: '100%' }} 
+            onEvents={onEvents} 
+            notMerge={true} 
+            lazyUpdate={true} 
+          />
+        </div>
+        
+        <div className={styles.sidebar}>
+          <h4 className={styles.sidebarTitle}>Chart Selections</h4>
+          
+          <div className={styles.selectionsList}>
+            {chartPins.length === 0 && chartIntervals.length === 0 && (
+              <div className={styles.emptySelections}>
+                No pins or intervals selected.
+              </div>
+            )}
+            
+            {chartPins.map(pin => (
+              <div key={pin.id} className={`${styles.selectionItem} ${styles.pin}`}>
+                <div className={styles.selectionHeader}>
+                  <span className={styles.selectionType}>Pin</span>
+                  <button
+                    className={styles.removeButton}
+                    onClick={() => removeChartPin(pin.id)}
+                    title="Remove pin"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className={styles.selectionDetails}>
+                  <div className={styles.timestamp}>
+                    {format(pin.timestamp, 'yyyy-MM-dd HH:mm:ss')}
+                  </div>
+                  <div className={styles.dataPoint}>
+                    Power: {pin.power.toFixed(2)} kW
+                  </div>
+                  <div className={styles.dataPoint}>
+                    Wind Speed: {pin.windSpeed.toFixed(2)} m/s
+                  </div>
+                  {pin.expectedPower && (
+                    <div className={styles.dataPoint}>
+                      Expected Power: {pin.expectedPower.toFixed(2)} kW
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            {chartIntervals.map(interval => (
+              <div key={interval.id} className={`${styles.selectionItem} ${styles.interval}`}>
+                <div className={styles.selectionHeader}>
+                  <span className={styles.selectionType}>Interval</span>
+                  <button
+                    className={styles.removeButton}
+                    onClick={() => removeChartInterval(interval.id)}
+                    title="Remove interval"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className={styles.selectionDetails}>
+                  <div className={styles.timestamp}>
+                    From: {format(interval.startTimestamp, 'yyyy-MM-dd HH:mm:ss')}
+                  </div>
+                  <div className={styles.intervalRange}>
+                    To: {format(interval.endTimestamp, 'yyyy-MM-dd HH:mm:ss')}
+                  </div>
+                  <div className={styles.intervalRange}>
+                    Duration: {Math.round((interval.endTimestamp.getTime() - interval.startTimestamp.getTime()) / (1000 * 60))} minutes
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

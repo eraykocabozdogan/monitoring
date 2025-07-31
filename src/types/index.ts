@@ -35,4 +35,20 @@ export interface Comment {
   text: string;
   selection: CommentSelection | null;
   createdAt: Date;
+  pins?: ChartPin[];
+  intervals?: ChartInterval[];
+}
+
+export interface ChartPin {
+  id: string;
+  timestamp: Date;
+  power: number;
+  windSpeed: number;
+  expectedPower?: number;
+}
+
+export interface ChartInterval {
+  id: string;
+  startTimestamp: Date;
+  endTimestamp: Date;
 }

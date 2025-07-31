@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TurbineEvent, PowerCurvePoint, Metrics, Comment, CommentSelection } from '../types/index';
+import type { TurbineEvent, PowerCurvePoint, Metrics, Comment, CommentSelection, ChartPin, ChartInterval } from '../types/index';
 import { parseCsvFiles } from '../utils/csvParser';
 import { aggregateLogDataToPowerCurve } from '../utils/aggregator';
 
@@ -30,6 +30,11 @@ interface AppState {
   lastTooltipFormat: 'detailed' | 'simple' | null;
   selectedFaultCategory: string | null;
   faultChartMode: 'count' | 'downtime';
+  // New chart interaction states
+  chartMode: 'normal' | 'interval' | 'pin';
+  chartPins: ChartPin[];
+  chartIntervals: ChartInterval[];
+  pendingInterval: { startTimestamp: Date } | null;
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
   processStagedFiles: () => Promise<{ success: boolean; message: string }>;
@@ -49,6 +54,14 @@ interface AppState {
   setLastTooltipFormat: (format: 'detailed' | 'simple' | null) => void;
   setSelectedFaultCategory: (category: string | null) => void;
   setFaultChartMode: (mode: 'count' | 'downtime') => void;
+  // New chart interaction functions
+  setChartMode: (mode: 'normal' | 'interval' | 'pin') => void;
+  addChartPin: (pin: ChartPin) => void;
+  removeChartPin: (pinId: string) => void;
+  addChartInterval: (interval: ChartInterval) => void;
+  removeChartInterval: (intervalId: string) => void;
+  setPendingInterval: (interval: { startTimestamp: Date } | null) => void;
+  clearChartSelections: () => void;
 }
 
 const withMinimumLoading = async (action: () => Promise<unknown>) => {
@@ -83,6 +96,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   lastTooltipFormat: null,
   selectedFaultCategory: null,
   faultChartMode: 'count',
+  // New chart interaction initial states
+  chartMode: 'normal',
+  chartPins: [],
+  chartIntervals: [],
+  pendingInterval: null,
 
   addStagedFile: (file) => {
     if (!get().stagedFiles.some(f => f.name === file.name)) {
@@ -140,6 +158,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           tempLogFilters: {},
           selectedChartTimestamp: null,
           selectedFaultCategory: null,
+          chartPins: [],
+          chartIntervals: [],
+          pendingInterval: null,
+          chartMode: 'normal',
         });
         result = { success: true, message: "Files processed successfully." };
       } catch (error) {
@@ -154,7 +176,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   setDateRange: (range) => set({ dateRange: range }),
   setMetrics: (newMetrics) => set({ metrics: newMetrics }),
   setLegendSelected: (selected) => set({ legendSelected: selected }),
-  addComment: (comment) => set(state => ({ comments: [...state.comments, comment] })),
+  addComment: (comment) => set(state => {
+    const { chartPins, chartIntervals } = state;
+    const commentWithSelections = {
+      ...comment,
+      pins: chartPins.length > 0 ? [...chartPins] : undefined,
+      intervals: chartIntervals.length > 0 ? [...chartIntervals] : undefined,
+    };
+    return { 
+      comments: [...state.comments, commentWithSelections],
+      chartPins: [],
+      chartIntervals: [],
+      pendingInterval: null,
+      chartMode: 'normal'
+    };
+  }),
   setNewCommentSelection: (selection) => set({ newCommentSelection: selection }),
   toggleTheme: () => set(state => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
   setIsLoading: (loading) => set({ isLoading: loading }),
@@ -167,4 +203,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLastTooltipFormat: (format) => set({ lastTooltipFormat: format }),
   setSelectedFaultCategory: (category) => set({ selectedFaultCategory: category }),
   setFaultChartMode: (mode) => set({ faultChartMode: mode }),
+  
+  // New chart interaction functions
+  setChartMode: (mode) => set({ chartMode: mode }),
+  addChartPin: (pin) => set(state => ({ chartPins: [...state.chartPins, pin] })),
+  removeChartPin: (pinId) => set(state => ({ chartPins: state.chartPins.filter(p => p.id !== pinId) })),
+  addChartInterval: (interval) => set(state => ({ chartIntervals: [...state.chartIntervals, interval] })),
+  removeChartInterval: (intervalId) => set(state => ({ chartIntervals: state.chartIntervals.filter(i => i.id !== intervalId) })),
+  setPendingInterval: (interval) => set({ pendingInterval: interval }),
+  clearChartSelections: () => set({ chartPins: [], chartIntervals: [], pendingInterval: null, chartMode: 'normal' }),
 }));
