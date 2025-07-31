@@ -11,6 +11,7 @@ const FaultDistributionChart: React.FC = () => {
     dateRange, 
     selectedFaultCategory, 
     faultChartMode,
+    logFilters,
     setSelectedFaultCategory,
     setFaultChartMode 
   } = useAppStore();
@@ -76,9 +77,15 @@ const FaultDistributionChart: React.FC = () => {
       pageButtonGap: 5,
       pageIconColor: theme === 'dark' ? '#f9fafb' : '#1f2937',
       pageIconInactiveColor: theme === 'dark' ? '#6b7280' : '#9ca3af',
-      selected: selectedFaultCategory ? 
-        Object.fromEntries(chartData.map(d => [d.name, d.name === selectedFaultCategory])) : 
-        undefined,
+      selected: (() => {
+        // Priority: selectedFaultCategory > logFilters.category > show all
+        if (selectedFaultCategory) {
+          return Object.fromEntries(chartData.map(d => [d.name, d.name === selectedFaultCategory]));
+        } else if (logFilters.category && logFilters.category.length > 0) {
+          return Object.fromEntries(chartData.map(d => [d.name, logFilters.category!.includes(d.name)]));
+        }
+        return undefined; // Show all
+      })(),
     },
     series: [
       {
@@ -97,7 +104,9 @@ const FaultDistributionChart: React.FC = () => {
               const unit = faultChartMode === 'count' ? 'events' : 'hrs';
               return `${params.name}\n${params.value} ${unit}`;
             }
-          } 
+          },
+          scale: false,
+          scaleSize: 0,
         },
         labelLine: { show: false },
         data: chartData.map(item => ({
@@ -115,15 +124,59 @@ const FaultDistributionChart: React.FC = () => {
   const handleChartClick = (params: any) => {
     if (params.componentType === 'series') {
       const clickedCategory = params.name;
+      
+      // Clear category filter from logFilters when using pie chart selection
+      const currentFilters = useAppStore.getState().logFilters;
+      if (currentFilters.category && currentFilters.category.length > 0) {
+        const newFilters = { ...currentFilters };
+        delete newFilters.category;
+        useAppStore.getState().setTempLogFilters(newFilters);
+        useAppStore.getState().applyLogFilters();
+      }
+      
       // Toggle selection: if already selected, deselect; otherwise select
       setSelectedFaultCategory(selectedFaultCategory === clickedCategory ? null : clickedCategory);
     }
+  };
+
+  const handleLegendSelectChanged = (params: any) => {
+    const selectedCategories = Object.keys(params.selected).filter(key => params.selected[key]);
+    
+    // Clear selectedFaultCategory when using legend selection
+    if (selectedFaultCategory) {
+      setSelectedFaultCategory(null);
+    }
+    
+    // Update log filters to include selected categories
+    const currentFilters = useAppStore.getState().logFilters;
+    const newFilters = {
+      ...currentFilters,
+      category: selectedCategories.length > 0 ? selectedCategories : undefined
+    };
+    
+    // Apply the filter
+    useAppStore.getState().setTempLogFilters(newFilters);
+    useAppStore.getState().applyLogFilters();
   };
 
   const toggleChartMode = () => {
     setFaultChartMode(faultChartMode === 'count' ? 'downtime' : 'count');
     // Clear selection when switching modes
     setSelectedFaultCategory(null);
+  };
+
+  const handleClearFilter = () => {
+    // Clear selectedFaultCategory
+    setSelectedFaultCategory(null);
+    
+    // Also clear category filter from logFilters
+    const currentFilters = useAppStore.getState().logFilters;
+    if (currentFilters.category && currentFilters.category.length > 0) {
+      const newFilters = { ...currentFilters };
+      delete newFilters.category;
+      useAppStore.getState().setTempLogFilters(newFilters);
+      useAppStore.getState().applyLogFilters();
+    }
   };
   
   if (logEvents.length === 0) {
@@ -153,10 +206,10 @@ const FaultDistributionChart: React.FC = () => {
           >
             {faultChartMode === 'count' ? '🕒 Show Downtime' : '📊 Show Count'}
           </button>
-          {selectedFaultCategory && (
+          {(selectedFaultCategory || (logFilters.category && logFilters.category.length > 0)) && (
             <button 
               className={styles.clearButton}
-              onClick={() => setSelectedFaultCategory(null)}
+              onClick={handleClearFilter}
               title="Clear selection"
             >
               ✕ Clear Filter
@@ -170,7 +223,8 @@ const FaultDistributionChart: React.FC = () => {
             option={option} 
             style={{ height: '100%', width: '100%' }}
             onEvents={{
-              click: handleChartClick
+              click: handleChartClick,
+              legendselectchanged: handleLegendSelectChanged
             }}
           />
         ) : (

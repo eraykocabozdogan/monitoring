@@ -13,7 +13,7 @@ export const useFilteredLogData = () => {
     const startTime = dateRange.start.getTime();
     const endTime = dateRange.end.getTime();
 
-    const isFilterActive = Object.values(logFilters).some(filterValues => filterValues.length > 0);
+    const isFilterActive = Object.values(logFilters).some(filterValues => filterValues && filterValues.length > 0);
     const isFaultCategoryFilterActive = selectedFaultCategory !== null;
 
     return logEvents.filter(event => {
@@ -25,27 +25,32 @@ export const useFilteredLogData = () => {
         return false;
       }
 
-      // Apply fault category filter if active
+      // Apply fault category filter if active (from pie chart click)
       if (isFaultCategoryFilterActive) {
         if (event.category !== selectedFaultCategory) {
           return false;
         }
       }
 
-      if (!isFilterActive) {
-        return true;
-      }
-
-      return Object.entries(logFilters).every(([key, selectedValues]) => {
-        if (!selectedValues || selectedValues.length === 0) {
-          return true;
-        }
-        const eventValue = event[key as keyof TurbineEvent];
-        if (eventValue === undefined || eventValue === null) {
+      // Apply other filters including category filter from FilterModal
+      if (isFilterActive) {
+        const passesAllFilters = Object.entries(logFilters).every(([key, selectedValues]) => {
+          if (!selectedValues || selectedValues.length === 0) {
+            return true;
+          }
+          const eventValue = event[key as keyof TurbineEvent];
+          if (eventValue === undefined || eventValue === null) {
+            return false;
+          }
+          return selectedValues.includes(String(eventValue));
+        });
+        
+        if (!passesAllFilters) {
           return false;
         }
-        return selectedValues.includes(String(eventValue));
-      });
+      }
+
+      return true;
     });
   }, [logEvents, dateRange, logFilters, selectedFaultCategory]);
 
