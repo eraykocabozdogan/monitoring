@@ -1,10 +1,12 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store/useAppStore';
+import { useFilteredPowerCurveData } from '../../hooks/useFilteredPowerCurveData';
 import styles from './PerformanceScatterChart.module.css';
 
 const PerformanceScatterChart: React.FC = () => {
-  const { powerCurveData, theme } = useAppStore();
+  const { theme, powerCurveData: allPowerCurveData } = useAppStore();
+  const filteredPowerCurveData = useFilteredPowerCurveData();
 
   const option = {
     title: {
@@ -21,12 +23,14 @@ const PerformanceScatterChart: React.FC = () => {
     grid: {
       left: '3%',
       right: '7%',
-      bottom: '3%',
+      bottom: '15%',
       containLabel: true,
     },
     xAxis: {
       type: 'value',
       name: 'Wind Speed (m/s)',
+      nameLocation: 'middle',
+      nameGap: 40,
       nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' },
       axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } },
       axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' },
@@ -34,6 +38,7 @@ const PerformanceScatterChart: React.FC = () => {
     yAxis: {
       type: 'value',
       name: 'Power (kW)',
+      min: 0,
       nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' },
       axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } },
       axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' },
@@ -43,8 +48,8 @@ const PerformanceScatterChart: React.FC = () => {
       {
         name: 'Actual Performance',
         type: 'scatter',
-        symbolSize: 5,
-        data: powerCurveData.map(p => [p.windSpeed, p.power]),
+        symbolSize: 3,
+        data: filteredPowerCurveData.map(p => [p.windSpeed, p.power]),
         itemStyle: {
           color: theme === 'dark' ? '#3b82f6' : '#2563eb',
           opacity: 0.5
@@ -53,7 +58,7 @@ const PerformanceScatterChart: React.FC = () => {
       {
         name: 'Reference Curve',
         type: 'line',
-        data: [...powerCurveData].sort((a,b) => a.windSpeed - b.windSpeed).map(p => [p.windSpeed, p.refPower]),
+        data: [...allPowerCurveData].sort((a,b) => a.windSpeed - b.windSpeed).map(p => [p.windSpeed, p.refPower]),
         smooth: true,
         showSymbol: false,
         lineStyle: {
@@ -65,11 +70,11 @@ const PerformanceScatterChart: React.FC = () => {
     ],
   };
 
-  if (powerCurveData.length === 0) {
+  if (filteredPowerCurveData.length === 0) {
     return (
       <div className={styles.container}>
         <div className={styles.emptyState}>
-          Performance Scatter Chart requires Power Curve data.
+          Performance Scatter Chart requires Power Curve data for the selected date range.
         </div>
       </div>
     );
