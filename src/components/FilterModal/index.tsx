@@ -63,11 +63,15 @@ const FilterModal: React.FC = () => {
     closeFilterModal();
   };
 
+  const handleClearAll = () => {
+    setTempLogFilters({});
+  };
+
   return (
     <div className={styles.overlay} onClick={closeFilterModal}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2 className={styles.title}>Filter Critical Logs</h2>
+          <h2 className={styles.title}>Filter Logs</h2>
           <button onClick={closeFilterModal} className={styles.closeButton}>&times;</button>
         </div>
         <div className={styles.content}>
@@ -94,6 +98,7 @@ const FilterModal: React.FC = () => {
         </div>
         <div className={styles.footer}>
           <button onClick={closeFilterModal} className={`${styles.button} ${styles.cancelButton}`}>Cancel</button>
+          <button onClick={handleClearAll} className={`${styles.button} ${styles.clearButton}`}>Clear All Selections</button>
           <button onClick={handleApply} className={`${styles.button} ${styles.applyButton}`}>Apply Filters</button>
         </div>
       </div>

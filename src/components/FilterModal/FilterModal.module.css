@@ -126,6 +126,15 @@
     filter: brightness(0.95);
 }
 
+.clearButton {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.clearButton:hover {
+  filter: brightness(1.1);
+}
+
 .applyButton {
   background-color: var(--color-brand);
   color: white;
