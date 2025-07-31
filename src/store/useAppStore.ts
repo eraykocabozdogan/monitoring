@@ -28,6 +28,8 @@ interface AppState {
   tempLogFilters: LogFilters;
   selectedChartTimestamp: Date | null;
   lastTooltipFormat: 'detailed' | 'simple' | null;
+  selectedFaultCategory: string | null;
+  faultChartMode: 'count' | 'downtime';
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
   processStagedFiles: () => Promise<{ success: boolean; message: string }>;
@@ -45,6 +47,8 @@ interface AppState {
   resetLogFilters: () => void;
   setSelectedChartTimestamp: (timestamp: Date | null) => void;
   setLastTooltipFormat: (format: 'detailed' | 'simple' | null) => void;
+  setSelectedFaultCategory: (category: string | null) => void;
+  setFaultChartMode: (mode: 'count' | 'downtime') => void;
 }
 
 const withMinimumLoading = async (action: () => Promise<unknown>) => {
@@ -77,6 +81,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   tempLogFilters: {},
   selectedChartTimestamp: null,
   lastTooltipFormat: null,
+  selectedFaultCategory: null,
+  faultChartMode: 'count',
 
   addStagedFile: (file) => {
     if (!get().stagedFiles.some(f => f.name === file.name)) {
@@ -133,6 +139,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           logFilters: {}, 
           tempLogFilters: {},
           selectedChartTimestamp: null,
+          selectedFaultCategory: null,
         });
         result = { success: true, message: "Files processed successfully." };
       } catch (error) {
@@ -158,4 +165,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   resetLogFilters: () => set({ logFilters: {}, tempLogFilters: {} }),
   setSelectedChartTimestamp: (timestamp) => set({ selectedChartTimestamp: timestamp }),
   setLastTooltipFormat: (format) => set({ lastTooltipFormat: format }),
+  setSelectedFaultCategory: (category) => set({ selectedFaultCategory: category }),
+  setFaultChartMode: (mode) => set({ faultChartMode: mode }),
 }));

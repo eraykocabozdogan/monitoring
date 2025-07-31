@@ -3,7 +3,7 @@ import { useAppStore } from '../store/useAppStore';
 import type { TurbineEvent } from '../types/index';
 
 export const useFilteredLogData = () => {
-  const { logEvents, dateRange, logFilters } = useAppStore();
+  const { logEvents, dateRange, logFilters, selectedFaultCategory } = useAppStore();
 
   const filteredData = useMemo(() => {
     if (!dateRange || !dateRange.start || !dateRange.end || !logEvents) {
@@ -14,6 +14,7 @@ export const useFilteredLogData = () => {
     const endTime = dateRange.end.getTime();
 
     const isFilterActive = Object.values(logFilters).some(filterValues => filterValues.length > 0);
+    const isFaultCategoryFilterActive = selectedFaultCategory !== null;
 
     return logEvents.filter(event => {
       if (!event.timestamp) return false;
@@ -22,6 +23,13 @@ export const useFilteredLogData = () => {
       const inDateRange = eventTime >= startTime && eventTime <= endTime;
       if (!inDateRange) {
         return false;
+      }
+
+      // Apply fault category filter if active
+      if (isFaultCategoryFilterActive) {
+        if (event.category !== selectedFaultCategory) {
+          return false;
+        }
       }
 
       if (!isFilterActive) {
@@ -39,7 +47,7 @@ export const useFilteredLogData = () => {
         return selectedValues.includes(String(eventValue));
       });
     });
-  }, [logEvents, dateRange, logFilters]);
+  }, [logEvents, dateRange, logFilters, selectedFaultCategory]);
 
   return filteredData;
 };

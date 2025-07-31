@@ -31,7 +31,14 @@ const LogRow = memo(({ index, style, data }: { index: number, style: React.CSSPr
 });
 
 const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
-  const { openFilterModal, isFilterModalOpen, selectedChartTimestamp, setSelectedChartTimestamp } = useAppStore();
+  const { 
+    openFilterModal, 
+    isFilterModalOpen, 
+    selectedChartTimestamp, 
+    setSelectedChartTimestamp,
+    selectedFaultCategory,
+    setSelectedFaultCategory 
+  } = useAppStore();
   const listRef = useRef<List>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -110,11 +117,29 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
 
       <div ref={containerRef} className={styles.logsCard}>
         <div className={styles.header}>
-          <h2 className={styles.title}>Logs ({logs.length})</h2>
-          <button onClick={openFilterModal} className={styles.filterButton}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-            <span>Filter</span>
-          </button>
+          <h2 className={styles.title}>
+            Logs ({logs.length})
+            {selectedFaultCategory && (
+              <span className={styles.categoryFilter}>
+                → {selectedFaultCategory}
+              </span>
+            )}
+          </h2>
+          <div className={styles.headerButtons}>
+            {selectedFaultCategory && (
+              <button 
+                onClick={() => setSelectedFaultCategory(null)} 
+                className={styles.clearCategoryButton}
+                title="Clear fault category filter"
+              >
+                ✕ Clear Category
+              </button>
+            )}
+            <button onClick={openFilterModal} className={styles.filterButton}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+              <span>Filter</span>
+            </button>
+          </div>
         </div>
         
         <div className={styles.tableContainer}>

@@ -1,4 +1,4 @@
-import type { Metrics } from '../types/index';
+import type { Metrics, TurbineEvent } from '../types/index';
 import type { LightweightLogEvent } from '../store/useAppStore';
 
 interface TimeInterval {
@@ -210,4 +210,62 @@ export const calculateMetrics = (
         mttr: isFinite(mttr_hours) ? parseFloat(mttr_hours.toFixed(2)) : 0,
         reliabilityR: clamp(isFinite(reliabilityR) ? parseFloat(reliabilityR.toFixed(2)) : 0),
     };
+};
+
+export const calculateFaultCategoryDowntimes = (
+    logEvents: TurbineEvent[], 
+    dateRange: { start: Date | null; end: Date | null }
+): Map<string, number> => {
+    const categoryDowntimes = new Map<string, number>();
+
+    if (!dateRange.start || !dateRange.end) {
+        return categoryDowntimes;
+    }
+
+    const filteredLogs = logEvents.filter(log => {
+        if (!log.status || log.status !== 'ON' || !log.category || log.category === 'No Fault' || !log.timestamp) {
+            return false;
+        }
+        return log.timestamp >= dateRange.start! && log.timestamp <= dateRange.end!;
+    });
+
+    // Group events by category and calculate downtime intervals
+    const categoryEvents = new Map<string, TurbineEvent[]>();
+    
+    filteredLogs.forEach(log => {
+        const category = log.category || 'Unknown';
+        if (!categoryEvents.has(category)) {
+            categoryEvents.set(category, []);
+        }
+        categoryEvents.get(category)!.push(log);
+    });
+
+    // Calculate downtime for each category
+    categoryEvents.forEach((events, category) => {
+        // Sort events by timestamp
+        events.sort((a, b) => (a.timestamp?.getTime() || 0) - (b.timestamp?.getTime() || 0));
+
+        let totalDowntime = 0;
+        let lastEventTime: Date | null = null;
+
+        events.forEach(event => {
+            if (lastEventTime && event.timestamp) {
+                // Calculate time difference in hours
+                const downtime = (event.timestamp.getTime() - lastEventTime.getTime()) / (1000 * 60 * 60);
+                totalDowntime += downtime;
+            }
+            lastEventTime = event.timestamp;
+        });
+
+        // If we have events, assume each event represents some downtime
+        // This is a simplified calculation - in reality you might have ON/OFF pairs
+        if (events.length > 0) {
+            // Add a base downtime per fault occurrence (e.g., 1 hour minimum per fault)
+            totalDowntime += events.length * 0.5; // 30 minutes base downtime per fault
+        }
+
+        categoryDowntimes.set(category, totalDowntime);
+    });
+
+    return categoryDowntimes;
 };

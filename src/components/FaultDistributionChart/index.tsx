@@ -1,14 +1,21 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useAppStore } from '../../store/useAppStore';
+import { calculateFaultCategoryDowntimes } from '../../utils/calculations';
 import styles from './FaultDistributionChart.module.css';
 
 const FaultDistributionChart: React.FC = () => {
-  const { logEvents, theme, dateRange } = useAppStore();
+  const { 
+    logEvents, 
+    theme, 
+    dateRange, 
+    selectedFaultCategory, 
+    faultChartMode,
+    setSelectedFaultCategory,
+    setFaultChartMode 
+  } = useAppStore();
 
   const chartData = useMemo(() => {
-    const categoryCounts = new Map<string, number>();
-
     const filteredLogs = logEvents.filter(log => {
       if (!log.status || log.status !== 'ON' || !log.category || log.category === 'No Fault' || !log.timestamp) {
         return false;
@@ -19,52 +26,104 @@ const FaultDistributionChart: React.FC = () => {
       return true;
     });
 
-    filteredLogs.forEach(log => {
-      const category = log.category || 'Unknown';
-      categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
-    });
-
-    return Array.from(categoryCounts.entries()).map(([name, value]) => ({ name, value }));
-  }, [logEvents, dateRange]);
+    if (faultChartMode === 'count') {
+      // Count-based calculation (existing logic)
+      const categoryCounts = new Map<string, number>();
+      filteredLogs.forEach(log => {
+        const category = log.category || 'Unknown';
+        categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
+      });
+      return Array.from(categoryCounts.entries()).map(([name, value]) => ({ name, value }));
+    } else {
+      // Downtime-based calculation
+      const categoryDowntimes = calculateFaultCategoryDowntimes(logEvents, dateRange);
+      return Array.from(categoryDowntimes.entries())
+        .filter(([, value]) => value > 0)
+        .map(([name, value]) => ({ 
+          name, 
+          value: Math.round(value * 100) / 100 // Round to 2 decimal places
+        }));
+    }
+  }, [logEvents, dateRange, faultChartMode]);
 
   const option = {
-    title: {
-      text: 'Fault Distribution by Category',
-      subtext: 'Based on selected date range',
-      left: 'center',
-      textStyle: {
-        color: theme === 'dark' ? '#f9fafb' : '#1f2937',
-      },
-      subtextStyle: {
-        color: theme === 'dark' ? '#9ca3af' : '#6b7280',
-      },
-    },
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b}: {c} ({d}%)',
+      formatter: (params: any) => {
+        const unit = faultChartMode === 'count' ? 'events' : 'hours';
+        return `${params.seriesName}<br/>${params.name}: ${params.value} ${unit} (${params.percent}%)`;
+      },
     },
+    color: [
+      '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+      '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1',
+      '#14b8a6', '#f43f5e', '#8b5a2b', '#7c3aed', '#059669',
+      '#dc2626', '#0891b2', '#ca8a04', '#9333ea', '#0d9488'
+    ],
     legend: {
+      type: 'scroll',
       orient: 'vertical',
-      left: 10,
-      top: 'middle',
+      left: '2%',
+      top: '5%',
+      bottom: '5%',
+      width: '35%',
       data: chartData.map(d => d.name),
       textStyle: {
         color: theme === 'dark' ? '#f9fafb' : '#1f2937',
+        fontSize: 10,
       },
+      pageButtonItemGap: 5,
+      pageButtonGap: 5,
+      pageIconColor: theme === 'dark' ? '#f9fafb' : '#1f2937',
+      pageIconInactiveColor: theme === 'dark' ? '#6b7280' : '#9ca3af',
+      selected: selectedFaultCategory ? 
+        Object.fromEntries(chartData.map(d => [d.name, d.name === selectedFaultCategory])) : 
+        undefined,
     },
     series: [
       {
         name: 'Fault Category',
         type: 'pie',
-        radius: ['50%', '70%'],
-        center: ['65%', '55%'],
+        radius: ['50%', '75%'],
+        center: ['70%', '50%'],
         avoidLabelOverlap: false,
         label: { show: false, position: 'center' },
-        emphasis: { label: { show: true, fontSize: '20', fontWeight: 'bold' } },
+        emphasis: { 
+          label: { 
+            show: true, 
+            fontSize: '16', 
+            fontWeight: 'bold',
+            formatter: (params: any) => {
+              const unit = faultChartMode === 'count' ? 'events' : 'hrs';
+              return `${params.name}\n${params.value} ${unit}`;
+            }
+          } 
+        },
         labelLine: { show: false },
-        data: chartData,
+        data: chartData.map(item => ({
+          ...item,
+          itemStyle: {
+            borderWidth: selectedFaultCategory === item.name ? 4 : 0,
+            borderColor: theme === 'dark' ? '#ffffff' : '#000000',
+            opacity: 1,
+          }
+        })),
       },
     ],
+  };
+  
+  const handleChartClick = (params: any) => {
+    if (params.componentType === 'series') {
+      const clickedCategory = params.name;
+      // Toggle selection: if already selected, deselect; otherwise select
+      setSelectedFaultCategory(selectedFaultCategory === clickedCategory ? null : clickedCategory);
+    }
+  };
+
+  const toggleChartMode = () => {
+    setFaultChartMode(faultChartMode === 'count' ? 'downtime' : 'count');
+    // Clear selection when switching modes
+    setSelectedFaultCategory(null);
   };
   
   if (logEvents.length === 0) {
@@ -79,12 +138,46 @@ const FaultDistributionChart: React.FC = () => {
 
   return (
     <div className={styles.container}>
-       <div className={styles.chartArea}>
-         {chartData.length > 0 ? (
-            <ReactECharts option={option} style={{ height: '100%', width: '100%' }} />
-         ) : (
-            <div className={styles.emptyState}>No fault data for selected period.</div>
-         )}
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
+          <h3 className={styles.chartTitle}>
+            Fault Distribution {faultChartMode === 'count' ? '(Count)' : '(Hours)'}
+          </h3>
+          <p className={styles.chartSubtitle}>Click segments to filter logs</p>
+        </div>
+        <div className={styles.headerButtons}>
+          <button 
+            className={styles.toggleButton}
+            onClick={toggleChartMode}
+            title={`Switch to ${faultChartMode === 'count' ? 'downtime' : 'count'} view`}
+          >
+            {faultChartMode === 'count' ? '🕒 Show Downtime' : '📊 Show Count'}
+          </button>
+          {selectedFaultCategory && (
+            <button 
+              className={styles.clearButton}
+              onClick={() => setSelectedFaultCategory(null)}
+              title="Clear selection"
+            >
+              ✕ Clear Filter
+            </button>
+          )}
+        </div>
+      </div>
+      <div className={styles.chartArea}>
+        {chartData.length > 0 ? (
+          <ReactECharts 
+            option={option} 
+            style={{ height: '100%', width: '100%' }}
+            onEvents={{
+              click: handleChartClick
+            }}
+          />
+        ) : (
+          <div className={styles.emptyState}>
+            No fault data for selected period.
+          </div>
+        )}
       </div>
     </div>
   );

@@ -20,6 +20,10 @@
   --color-text-secondary: #6b7280;
   --color-border: #e5e7eb;
   --color-brand: #3b82f6;
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
   --shadow-main: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -31,6 +35,10 @@ body[data-theme='dark'] {
   --color-text-secondary: #A0A0A0; /* İkincil metin rengi */
   --color-border: #333333; /* Kenarlıklar için */
   --color-brand: #3b82f6; /* Marka rengi aynı kalabilir */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
   --shadow-main: 0 4px 12px rgba(0, 0, 0, 0.5); /* Gölgeyi daha belirgin yapalım */
 }
 
