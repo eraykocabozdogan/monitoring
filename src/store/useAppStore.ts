@@ -62,6 +62,7 @@ interface AppState {
   removeChartInterval: (intervalId: string) => void;
   setPendingInterval: (interval: { startTimestamp: Date } | null) => void;
   clearChartSelections: () => void;
+  loadCommentSelectionsToChart: (commentId: number) => void;
 }
 
 const withMinimumLoading = async (action: () => Promise<unknown>) => {
@@ -212,4 +213,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeChartInterval: (intervalId) => set(state => ({ chartIntervals: state.chartIntervals.filter(i => i.id !== intervalId) })),
   setPendingInterval: (interval) => set({ pendingInterval: interval }),
   clearChartSelections: () => set({ chartPins: [], chartIntervals: [], pendingInterval: null, chartMode: 'normal' }),
+  loadCommentSelectionsToChart: (commentId: number) => set(state => {
+    const comment = state.comments.find(c => c.id === commentId);
+    if (!comment) return state;
+    
+    const newPins = comment.pins ? [...comment.pins] : [];
+    const newIntervals = comment.intervals ? [...comment.intervals] : [];
+    
+    return {
+      chartPins: [...state.chartPins, ...newPins],
+      chartIntervals: [...state.chartIntervals, ...newIntervals],
+    };
+  }),
 }));

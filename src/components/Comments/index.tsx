@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import type { CommentSelection } from '../../types';
 
 const Comments: React.FC = () => {
-  const { comments, addComment, newCommentSelection, setNewCommentSelection, chartPins, chartIntervals } = useAppStore();
+  const { comments, addComment, newCommentSelection, setNewCommentSelection, chartPins, chartIntervals, loadCommentSelectionsToChart } = useAppStore();
   const [commentText, setCommentText] = useState('');
 
   const handleAddComment = () => {
@@ -39,6 +39,10 @@ const Comments: React.FC = () => {
     }
     
     return `Point: ${startFormatted}`;
+  };
+
+  const handleLoadSelectionsToChart = (commentId: number) => {
+    loadCommentSelectionsToChart(commentId);
   };
 
   return (
@@ -83,7 +87,18 @@ const Comments: React.FC = () => {
         ) : (
           [...comments].reverse().map(comment => (
             <div key={comment.id} className={styles.commentItem}>
-              <p className={styles.commentText}>{comment.text}</p>
+              <div className={styles.commentHeader}>
+                <p className={styles.commentText}>{comment.text}</p>
+                {(comment.pins?.length || comment.intervals?.length) && (
+                  <button
+                    onClick={() => handleLoadSelectionsToChart(comment.id)}
+                    className={styles.loadToChartButton}
+                    title="Load pins and intervals to chart"
+                  >
+                    📊 Load to Chart
+                  </button>
+                )}
+              </div>
               
               {(comment.pins && comment.pins.length > 0) && (
                 <div className={styles.commentSelections}>
