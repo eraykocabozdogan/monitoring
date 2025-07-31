@@ -18,6 +18,7 @@ const DataChart: React.FC = () => {
     legendSelected,
     setLegendSelected,
     theme,
+    setSelectedChartTimestamp,
   } = useAppStore();
 
   const chartRef = useRef<ReactECharts | null>(null);
@@ -125,14 +126,14 @@ const DataChart: React.FC = () => {
     }
 
     const baseSeries = [
-      { name: 'Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.power }, z: 3, data: displayData.map(event => [event.timestamp!.getTime(), event.power]) },
-      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, lineStyle: { width: 1.5, color: colors.windLine, opacity: 0.75 }, areaStyle: { color: colors.windArea, opacity: 0.5 }, itemStyle: { opacity: 1 }, z: 1, data: displayData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
-      { name: 'Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 1 }, data: processedSeriesData.faultEvents, zlevel: 10 },
-      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'diamond', symbolSize: 11, itemStyle: { color: colors.criticalFault, opacity: 1 }, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11 }
+      { name: 'Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.power }, z: 3, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.power]) },
+      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, showSymbol: false, lineStyle: { width: 1.5, color: colors.windLine, opacity: 0.75 }, areaStyle: { color: colors.windArea, opacity: 0.5 }, itemStyle: { opacity: 1 }, z: 1, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
+      { name: 'Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.faultEvents, zlevel: 10 },
+      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'diamond', symbolSize: 11, itemStyle: { color: colors.criticalFault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11 }
     ];
 
     if (hasRefPower) {
-      baseSeries.splice(1, 0, { name: 'Expected Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.refPower }, z: 2, data: displayData.map(event => [event.timestamp!.getTime(), event.refPower]) });
+      baseSeries.splice(1, 0, { name: 'Expected Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.refPower }, z: 2, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.refPower]) });
     }
 
     return baseSeries;
@@ -189,10 +190,92 @@ const DataChart: React.FC = () => {
 
   const handleLegendSelectChanged = useCallback((e: { selected: Record<string, boolean> }) => setLegendSelected(e.selected), [setLegendSelected]);
 
+  const handleChartClick = useCallback((params: any) => {
+    console.log('Chart clicked:', params); // Debug için
+    
+    // Önce series verisi üzerindeki direkt tıklamaları kontrol et
+    if (params.data && Array.isArray(params.data) && params.data[0]) {
+      const timestamp = new Date(params.data[0]);
+      console.log('✅ Setting timestamp from data:', timestamp); // Debug için
+      setSelectedChartTimestamp(timestamp);
+      return;
+    } 
+    
+    if (params.value && Array.isArray(params.value) && params.value[0]) {
+      const timestamp = new Date(params.value[0]);
+      console.log('✅ Setting timestamp from value:', timestamp); // Debug için
+      setSelectedChartTimestamp(timestamp);
+      return;
+    }
+    
+    // Chart boş alanına tıklama için pixel conversion
+    if (chartRef.current && params.event) {
+      console.log('Attempting pixel conversion...'); // Debug için
+      
+      try {
+        const echartsInstance = chartRef.current.getEchartsInstance();
+        
+        // ECharts'ın convertFromPixel metodunu kullan
+        const pointInGrid = echartsInstance.convertFromPixel('grid', [params.event.offsetX, params.event.offsetY]);
+        console.log('Conversion result:', pointInGrid); // Debug için
+        
+        if (pointInGrid && pointInGrid[0] !== undefined && !isNaN(pointInGrid[0])) {
+          const timestamp = new Date(pointInGrid[0]);
+          console.log('✅ Setting timestamp from pixel conversion:', timestamp, 'Pixel:', params.event.offsetX); // Debug için
+          setSelectedChartTimestamp(timestamp);
+          return;
+        } else {
+          console.log('❌ Pixel conversion failed, trying fallback...'); // Debug için
+          
+          // Fallback: Manual calculation
+          if (dateRange.start && dateRange.end && params.event.offsetX !== undefined) {
+            const chartInstance = echartsInstance;
+            const chartWidth = chartInstance.getWidth();
+            
+            // Grid area hesaplama (ECharts default grid margins)
+            const gridLeft = chartWidth * 0.05; // 5%
+            const gridRight = chartWidth * 0.05; // 5%
+            const gridWidth = chartWidth - gridLeft - gridRight;
+            
+            const relativeX = (params.event.offsetX - gridLeft) / gridWidth;
+            
+            if (relativeX >= 0 && relativeX <= 1) {
+              const timeRange = dateRange.end.getTime() - dateRange.start.getTime();
+              const clickedTime = dateRange.start.getTime() + (relativeX * timeRange);
+              const timestamp = new Date(clickedTime);
+              
+              console.log('✅ Setting timestamp from fallback calculation:', timestamp, 'RelativeX:', relativeX); // Debug için
+              setSelectedChartTimestamp(timestamp);
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error in chart click handling:', error);
+      }
+    }
+    
+    console.log('❌ No timestamp could be determined from click'); // Debug için
+  }, [setSelectedChartTimestamp, dateRange]);
+
   const onEvents = useMemo(() => ({
     datazoom: handleDataZoom,
     legendselectchanged: handleLegendSelectChanged,
-  }), [handleDataZoom, handleLegendSelectChanged]);
+    click: handleChartClick,
+    // Chart alanına tıklama da yakala (boş alanlara tıklama için) 
+    'finished': () => {
+      // Chart render tamamlandığında event listener'ları yeniden ekle
+      setTimeout(() => {
+        if (chartRef.current) {
+          const echartsInstance = chartRef.current.getEchartsInstance();
+          // Event listener'ı yeniden kaydet
+          echartsInstance.off('click'); // Önceki listener'ı kaldır
+          echartsInstance.on('click', handleChartClick); // Yeni listener ekle
+          console.log('Chart click events re-registered after render'); // Debug için
+        }
+      }, 100);
+    }
+  }), [handleDataZoom, handleLegendSelectChanged, handleChartClick]);
 
   const option = useMemo(() => {
     const legendData = ['Power (kW)', 'Wind Speed (m/s)', 'Fault', 'Safety Critical Fault'];
@@ -207,7 +290,12 @@ const DataChart: React.FC = () => {
       },
       legend: { data: legendData, selected: legendSelected, textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' } },
       grid: { left: '5%', right: '5%', bottom: '15%', containLabel: true },
-      xAxis: { type: 'time', axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' } },
+      xAxis: { 
+        type: 'time', 
+        axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, 
+        axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' },
+        triggerEvent: true // X ekseni tıklamalarını etkinleştir
+      },
       yAxis: [
         { type: 'value', name: 'Power (kW)', min: 0, nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, splitLine: { lineStyle: { color: [theme === 'dark' ? '#4b5563' : '#e5e7eb'] } } },
         { type: 'value', name: 'Wind Speed (m/s)', nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, splitLine: { show: false } }

@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useRef, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import type { TurbineEvent } from '../../types/index.js';
 import styles from './CriticalLogs.module.css';
@@ -31,13 +31,57 @@ const LogRow = memo(({ index, style, data }: { index: number, style: React.CSSPr
 });
 
 const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
-  const { openFilterModal, isFilterModalOpen } = useAppStore();
+  const { openFilterModal, isFilterModalOpen, selectedChartTimestamp, setSelectedChartTimestamp } = useAppStore();
+  const listRef = useRef<List>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Chart'tan seçilen timestamp'a göre log listesinde ilgili log'a scroll yap
+  useEffect(() => {
+    console.log('CriticalLogs useEffect triggered:', { selectedChartTimestamp, logsLength: logs.length }); // Debug için
+    
+    if (selectedChartTimestamp && logs.length > 0 && listRef.current) {
+      // Tıklanan zamana en yakın log'u bul
+      let closestLogIndex = -1;
+      let minTimeDiff = Infinity;
+      
+      logs.forEach((log, index) => {
+        if (log.timestamp) {
+          const timeDiff = Math.abs(log.timestamp.getTime() - selectedChartTimestamp.getTime());
+          if (timeDiff < minTimeDiff) {
+            minTimeDiff = timeDiff;
+            closestLogIndex = index;
+          }
+        }
+      });
+      
+      console.log('Found closest log at index:', closestLogIndex, 'for timestamp:', selectedChartTimestamp); // Debug için
+      if (closestLogIndex !== -1) {
+        console.log('Closest log timestamp:', logs[closestLogIndex].timestamp, 'Time diff (ms):', minTimeDiff); // Debug için
+        
+        // İlgili log'a scroll yap - 'start' ile en üstte görünsün
+        listRef.current.scrollToItem(closestLogIndex, 'start');
+        console.log('Scrolled to log index:', closestLogIndex); // Debug için
+        
+        // Log container'ına scroll yap
+        if (containerRef.current) {
+          containerRef.current.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          });
+          console.log('Scrolled to logs section'); // Debug için
+        }
+      }
+      
+      // Timestamp'i temizle (tek seferlik işlem)
+      setSelectedChartTimestamp(null);
+    }
+  }, [selectedChartTimestamp, logs, setSelectedChartTimestamp]);
 
   return (
     <>
       {isFilterModalOpen && <FilterModal />}
 
-      <div className={styles.logsCard}>
+      <div ref={containerRef} className={styles.logsCard}>
         <div className={styles.header}>
           <h2 className={styles.title}>Logs ({logs.length})</h2>
           <button onClick={openFilterModal} className={styles.filterButton}>
@@ -61,6 +105,7 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
           <div className={styles.tableBody}>
             {logs.length > 0 ? (
               <List
+                ref={listRef}
                 height={560}
                 itemCount={logs.length}
                 itemSize={45}

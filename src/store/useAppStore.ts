@@ -26,6 +26,7 @@ interface AppState {
   isFilterModalOpen: boolean;
   logFilters: LogFilters;
   tempLogFilters: LogFilters;
+  selectedChartTimestamp: Date | null;
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
   processStagedFiles: () => Promise<{ success: boolean; message: string }>;
@@ -41,6 +42,7 @@ interface AppState {
   setTempLogFilters: (filters: LogFilters) => void;
   applyLogFilters: () => void;
   resetLogFilters: () => void;
+  setSelectedChartTimestamp: (timestamp: Date | null) => void;
 }
 
 const withMinimumLoading = async (action: () => Promise<unknown>) => {
@@ -71,6 +73,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isFilterModalOpen: false,
   logFilters: {},
   tempLogFilters: {},
+  selectedChartTimestamp: null,
 
   addStagedFile: (file) => {
     if (!get().stagedFiles.some(f => f.name === file.name)) {
@@ -126,6 +129,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           newCommentSelection: null,
           logFilters: {}, 
           tempLogFilters: {},
+          selectedChartTimestamp: null,
         });
         result = { success: true, message: "Files processed successfully." };
       } catch (error) {
@@ -149,4 +153,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTempLogFilters: (filters) => set({ tempLogFilters: filters }),
   applyLogFilters: () => set(state => ({ logFilters: state.tempLogFilters })),
   resetLogFilters: () => set({ logFilters: {}, tempLogFilters: {} }),
+  setSelectedChartTimestamp: (timestamp) => set({ selectedChartTimestamp: timestamp }),
 }));
