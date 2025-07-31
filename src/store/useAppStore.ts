@@ -27,6 +27,7 @@ interface AppState {
   logFilters: LogFilters;
   tempLogFilters: LogFilters;
   selectedChartTimestamp: Date | null;
+  lastTooltipFormat: 'detailed' | 'simple' | null;
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
   processStagedFiles: () => Promise<{ success: boolean; message: string }>;
@@ -43,6 +44,7 @@ interface AppState {
   applyLogFilters: () => void;
   resetLogFilters: () => void;
   setSelectedChartTimestamp: (timestamp: Date | null) => void;
+  setLastTooltipFormat: (format: 'detailed' | 'simple' | null) => void;
 }
 
 const withMinimumLoading = async (action: () => Promise<unknown>) => {
@@ -74,6 +76,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   logFilters: {},
   tempLogFilters: {},
   selectedChartTimestamp: null,
+  lastTooltipFormat: null,
 
   addStagedFile: (file) => {
     if (!get().stagedFiles.some(f => f.name === file.name)) {
@@ -154,4 +157,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   applyLogFilters: () => set(state => ({ logFilters: state.tempLogFilters })),
   resetLogFilters: () => set({ logFilters: {}, tempLogFilters: {} }),
   setSelectedChartTimestamp: (timestamp) => set({ selectedChartTimestamp: timestamp }),
+  setLastTooltipFormat: (format) => set({ lastTooltipFormat: format }),
 }));

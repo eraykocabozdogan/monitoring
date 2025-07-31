@@ -35,44 +35,71 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
   const listRef = useRef<List>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Chart'tan seçilen timestamp'a göre log listesinde ilgili log'a scroll yap
   useEffect(() => {
-    console.log('CriticalLogs useEffect triggered:', { selectedChartTimestamp, logsLength: logs.length }); // Debug için
-    
     if (selectedChartTimestamp && logs.length > 0 && listRef.current) {
-      // Tıklanan zamana en yakın log'u bul
-      let closestLogIndex = -1;
-      let minTimeDiff = Infinity;
+      const clickedTime = selectedChartTimestamp.getTime();
+      const { lastTooltipFormat } = useAppStore.getState();
+      const isDetailedZoom = lastTooltipFormat === 'detailed';
       
-      logs.forEach((log, index) => {
-        if (log.timestamp) {
-          const timeDiff = Math.abs(log.timestamp.getTime() - selectedChartTimestamp.getTime());
-          if (timeDiff < minTimeDiff) {
-            minTimeDiff = timeDiff;
-            closestLogIndex = index;
+      let targetIndex = -1;
+      
+      if (isDetailedZoom) {
+        let prevLogTimeDiff = Infinity;
+        let prevLogIndex = -1;
+        let closestTimeDiff = Infinity;
+        let closestIndex = -1;
+        
+        logs.forEach((log, index) => {
+          if (log.timestamp) {
+            const timeDiff = log.timestamp.getTime() - clickedTime;
+            const absTimeDiff = Math.abs(timeDiff);
+            
+            if (absTimeDiff < closestTimeDiff) {
+              closestTimeDiff = absTimeDiff;
+              closestIndex = index;
+            }
+            
+            if (timeDiff <= 0 && Math.abs(timeDiff) < prevLogTimeDiff) {
+              prevLogTimeDiff = Math.abs(timeDiff);
+              prevLogIndex = index;
+            }
+          }
+        });
+        
+        targetIndex = prevLogIndex !== -1 ? prevLogIndex : closestIndex;
+        
+      } else {
+        const clickedDate = new Date(selectedChartTimestamp);
+        clickedDate.setHours(0, 0, 0, 0);
+        const nextDay = new Date(clickedDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        
+        const dayStart = clickedDate.getTime();
+        const dayEnd = nextDay.getTime();
+        
+        for (let i = 0; i < logs.length; i++) {
+          const log = logs[i];
+          if (log.timestamp) {
+            const logTime = log.timestamp.getTime();
+            if (logTime >= dayStart && logTime < dayEnd) {
+              targetIndex = i;
+              break;
+            }
           }
         }
-      });
+      }
       
-      console.log('Found closest log at index:', closestLogIndex, 'for timestamp:', selectedChartTimestamp); // Debug için
-      if (closestLogIndex !== -1) {
-        console.log('Closest log timestamp:', logs[closestLogIndex].timestamp, 'Time diff (ms):', minTimeDiff); // Debug için
+      if (targetIndex !== -1) {
+        listRef.current.scrollToItem(targetIndex, 'start');
         
-        // İlgili log'a scroll yap - 'start' ile en üstte görünsün
-        listRef.current.scrollToItem(closestLogIndex, 'start');
-        console.log('Scrolled to log index:', closestLogIndex); // Debug için
-        
-        // Log container'ına scroll yap
         if (containerRef.current) {
           containerRef.current.scrollIntoView({ 
             behavior: 'smooth', 
             block: 'start' 
           });
-          console.log('Scrolled to logs section'); // Debug için
         }
       }
       
-      // Timestamp'i temizle (tek seferlik işlem)
       setSelectedChartTimestamp(null);
     }
   }, [selectedChartTimestamp, logs, setSelectedChartTimestamp]);

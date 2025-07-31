@@ -153,6 +153,7 @@ const DataChart: React.FC = () => {
 
     if (firstParam.seriesType === 'scatter') {
         const event = firstParam.data.rawData as TurbineEvent;
+        useAppStore.getState().setLastTooltipFormat('detailed');
         return `<div style="${baseStyle}"><strong>Event: ${event.eventType}</strong><hr style="${hrStyle}"><strong>Timestamp:</strong> ${format(event.timestamp!, 'yyyy-MM-dd HH:mm:ss')}<br><strong>Description:</strong> ${event.description}</div>`;
     }
 
@@ -168,7 +169,14 @@ const DataChart: React.FC = () => {
     const powerPoint = powerCurveData.find(p => p.timestamp?.getTime() === hoverTime.getTime());
     if (!powerPoint) return '';
 
-    return `<div style="${baseStyle}"><strong>${format(hoverTime, 'yyyy-MM-dd HH:mm:ss')}</strong><br>Power: ${powerPoint.power.toFixed(2)} kW | Wind: ${powerPoint.windSpeed.toFixed(2)} m/s<hr style="${hrStyle}">${eventSummary}</div>`;
+    // Tooltip formatına göre tooltip tipini belirle
+    const timeFormat = format(hoverTime, 'yyyy-MM-dd HH:mm:ss');
+    const hasTimeDetails = timeFormat.includes(':');
+    
+    const tooltipFormat = hasTimeDetails ? 'detailed' : 'simple';
+    useAppStore.getState().setLastTooltipFormat(tooltipFormat);
+
+    return `<div style="${baseStyle}"><strong>${timeFormat}</strong><br>Power: ${powerPoint.power.toFixed(2)} kW | Wind: ${powerPoint.windSpeed.toFixed(2)} m/s<hr style="${hrStyle}">${eventSummary}</div>`;
   }, [eventsByTimeBucket, powerCurveData, theme]);
 
   const handleDataZoom = useCallback(() => {
@@ -191,90 +199,57 @@ const DataChart: React.FC = () => {
   const handleLegendSelectChanged = useCallback((e: { selected: Record<string, boolean> }) => setLegendSelected(e.selected), [setLegendSelected]);
 
   const handleChartClick = useCallback((params: any) => {
-    console.log('Chart clicked:', params); // Debug için
-    
-    // Önce series verisi üzerindeki direkt tıklamaları kontrol et
     if (params.data && Array.isArray(params.data) && params.data[0]) {
       const timestamp = new Date(params.data[0]);
-      console.log('✅ Setting timestamp from data:', timestamp); // Debug için
       setSelectedChartTimestamp(timestamp);
       return;
     } 
     
     if (params.value && Array.isArray(params.value) && params.value[0]) {
       const timestamp = new Date(params.value[0]);
-      console.log('✅ Setting timestamp from value:', timestamp); // Debug için
       setSelectedChartTimestamp(timestamp);
       return;
     }
     
-    // Chart boş alanına tıklama için pixel conversion
     if (chartRef.current && params.event) {
-      console.log('Attempting pixel conversion...'); // Debug için
-      
       try {
         const echartsInstance = chartRef.current.getEchartsInstance();
+        const isReady = echartsInstance.isDisposed() === false;
+        if (!isReady) return;
         
-        // ECharts'ın convertFromPixel metodunu kullan
         const pointInGrid = echartsInstance.convertFromPixel('grid', [params.event.offsetX, params.event.offsetY]);
-        console.log('Conversion result:', pointInGrid); // Debug için
         
         if (pointInGrid && pointInGrid[0] !== undefined && !isNaN(pointInGrid[0])) {
           const timestamp = new Date(pointInGrid[0]);
-          console.log('✅ Setting timestamp from pixel conversion:', timestamp, 'Pixel:', params.event.offsetX); // Debug için
           setSelectedChartTimestamp(timestamp);
           return;
         } else {
-          console.log('❌ Pixel conversion failed, trying fallback...'); // Debug için
-          
-          // Fallback: Manual calculation
           if (dateRange.start && dateRange.end && params.event.offsetX !== undefined) {
-            const chartInstance = echartsInstance;
-            const chartWidth = chartInstance.getWidth();
-            
-            // Grid area hesaplama (ECharts default grid margins)
-            const gridLeft = chartWidth * 0.05; // 5%
-            const gridRight = chartWidth * 0.05; // 5%
+            const chartWidth = echartsInstance.getWidth();
+            const gridLeft = chartWidth * 0.05;
+            const gridRight = chartWidth * 0.05;
             const gridWidth = chartWidth - gridLeft - gridRight;
-            
             const relativeX = (params.event.offsetX - gridLeft) / gridWidth;
             
             if (relativeX >= 0 && relativeX <= 1) {
               const timeRange = dateRange.end.getTime() - dateRange.start.getTime();
               const clickedTime = dateRange.start.getTime() + (relativeX * timeRange);
               const timestamp = new Date(clickedTime);
-              
-              console.log('✅ Setting timestamp from fallback calculation:', timestamp, 'RelativeX:', relativeX); // Debug için
               setSelectedChartTimestamp(timestamp);
               return;
             }
           }
         }
       } catch (error) {
-        console.error('Error in chart click handling:', error);
+        // Sessizce devam et
       }
     }
-    
-    console.log('❌ No timestamp could be determined from click'); // Debug için
   }, [setSelectedChartTimestamp, dateRange]);
 
   const onEvents = useMemo(() => ({
     datazoom: handleDataZoom,
     legendselectchanged: handleLegendSelectChanged,
     click: handleChartClick,
-    // Chart alanına tıklama da yakala (boş alanlara tıklama için) 
-    'finished': () => {
-      // Chart render tamamlandığında event listener'ları yeniden ekle
-      setTimeout(() => {
-        if (chartRef.current) {
-          const echartsInstance = chartRef.current.getEchartsInstance();
-          // Event listener'ı yeniden kaydet
-          echartsInstance.off('click'); // Önceki listener'ı kaldır
-          echartsInstance.on('click', handleChartClick); // Yeni listener ekle
-          console.log('Chart click events re-registered after render'); // Debug için
-        }
-      }, 100);
-    }
   }), [handleDataZoom, handleLegendSelectChanged, handleChartClick]);
 
   const option = useMemo(() => {
