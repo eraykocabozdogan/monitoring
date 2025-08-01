@@ -92,12 +92,12 @@ const DataChart: React.FC = () => {
 
   const series = useMemo(() => {
     const colors = {
-        power: theme === 'dark' ? '#f43f5e' : '#a855f7',
-        windLine: theme === 'dark' ? '#22c55e' : '#f59e0b',
-        windArea: theme === 'dark' ? '#16a34a' : '#fde68a',
-        refPower: theme === 'dark' ? '#fb7185' : '#d8b4fe',
-        fault: theme === 'dark' ? '#f59e0b' : '#ef4444', 
-        criticalFault: '#b91c1c'
+        power: theme === 'dark' ? '#0891b2' : '#0f766e',        // Koyu mod cyan, açık mod teal - Power için
+        windLine: theme === 'dark' ? '#10b981' : '#059669',     // Koyu mod yeşil, açık mod koyu yeşil - Wind line için
+        windArea: theme === 'dark' ? '#065f46' : '#d1fae5',     // Koyu mod koyu yeşil, açık mod açık yeşil - Wind area için
+        refPower: theme === 'dark' ? '#67e8f9' : '#0891b2',     // Koyu mod açık cyan, açık mod cyan - Expected Power için
+        fault: theme === 'dark' ? '#eab308' : '#ff9055ff',        // Koyu mod sarı, açık mod turuncu - Normal fault için
+        criticalFault: theme === 'dark' ? '#b20909ff' : '#b20909ff' // Koyu mod kırmızı, açık mod koyu kırmızı - Critical fault için
     };
 
     let displayData = powerCurveData;
@@ -143,8 +143,8 @@ const DataChart: React.FC = () => {
     const baseSeries = [
       { name: 'Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.power }, z: 3, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.power]), xAxisIndex: 0, yAxisIndex: 0 },
       { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, xAxisIndex: 0, showSymbol: false, lineStyle: { width: 1.5, color: colors.windLine, opacity: 0.75 }, areaStyle: { color: colors.windArea, opacity: 0.5 }, itemStyle: { opacity: 1 }, z: 1, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
-      { name: 'Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.faultEvents, zlevel: 10, xAxisIndex: 0, yAxisIndex: 0 },
-      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'diamond', symbolSize: 11, itemStyle: { color: colors.criticalFault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11, xAxisIndex: 0, yAxisIndex: 0 }
+      { name: 'Fault', type: 'scatter', symbol: 'diamond', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.faultEvents, zlevel: 10, xAxisIndex: 0, yAxisIndex: 0 },
+      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.criticalFault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11, xAxisIndex: 0, yAxisIndex: 0 }
     ];
 
     if (hasRefPower) {
