@@ -105,8 +105,11 @@ const Comments: React.FC = () => {
                   <h5>Chart Pins:</h5>
                   {comment.pins.map(pin => (
                     <div key={pin.id} className={styles.selectionDetail}>
-                      📍 {format(pin.timestamp, 'yyyy-MM-dd HH:mm:ss')} - Power: {pin.power.toFixed(2)} kW, Wind: {pin.windSpeed.toFixed(2)} m/s
-                      {pin.expectedPower && `, Expected: ${pin.expectedPower.toFixed(2)} kW`}
+                      📍 {format(pin.timestamp, 'yyyy-MM-dd HH:mm:ss')} - 
+                      Power: {pin.powerValid !== false ? `${pin.power.toFixed(2)} kW` : 'not valid data'}, 
+                      Wind: {pin.windSpeedValid !== false ? `${pin.windSpeed.toFixed(2)} m/s` : 'not valid data'}
+                      {pin.expectedPower !== undefined && pin.expectedPowerValid !== false && `, Expected: ${pin.expectedPower.toFixed(2)} kW`}
+                      {pin.expectedPower !== undefined && pin.expectedPowerValid === false && `, Expected: not valid data`}
                     </div>
                   ))}
                 </div>

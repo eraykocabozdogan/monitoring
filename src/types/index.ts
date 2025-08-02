@@ -45,6 +45,9 @@ export interface ChartPin {
   power: number;
   windSpeed: number;
   expectedPower?: number;
+  powerValid?: boolean;
+  windSpeedValid?: boolean;
+  expectedPowerValid?: boolean;
 }
 
 export interface ChartInterval {

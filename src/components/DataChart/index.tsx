@@ -38,6 +38,9 @@ const DataChart: React.FC = () => {
 
   const chartRef = useRef<ReactECharts | null>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const lastTooltipTimestamp = useRef<Date | null>(null);
+  const currentAxisPointerTimestamp = useRef<Date | null>(null);
+  const exactDisplayedTimestamp = useRef<Date | null>(null); // The exact timestamp shown in UI
 
   const hasRefPower = useMemo(() =>
     powerCurveData.length > 0 && powerCurveData.some(p => p.refPower > 0),
@@ -141,20 +144,20 @@ const DataChart: React.FC = () => {
     }
 
     const baseSeries = [
-      { name: 'Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.power }, z: 3, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.power]), xAxisIndex: 0, yAxisIndex: 0 },
-      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, xAxisIndex: 0, showSymbol: false, lineStyle: { width: 1.5, color: colors.windLine, opacity: 0.75 }, areaStyle: { color: colors.windArea, opacity: 0.5 }, itemStyle: { opacity: 1 }, z: 1, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.windSpeed]) },
-      { name: 'Fault', type: 'scatter', symbol: 'diamond', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.faultEvents, zlevel: 10, xAxisIndex: 0, yAxisIndex: 0 },
-      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.criticalFault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11, xAxisIndex: 0, yAxisIndex: 0 }
+      { name: 'Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.power }, z: 3, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.power]), xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' },
+      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, xAxisIndex: 0, showSymbol: false, lineStyle: { width: 1.5, color: colors.windLine, opacity: 0.75 }, areaStyle: { color: colors.windArea, opacity: 0.5 }, itemStyle: { opacity: 1 }, z: 1, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.windSpeed]), triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' },
+      { name: 'Fault', type: 'scatter', symbol: 'diamond', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.faultEvents, zlevel: 10, xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, emphasis: { disabled: true }, cursor: 'default' },
+      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.criticalFault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11, xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, emphasis: { disabled: true }, cursor: 'default' }
     ];
 
     if (hasRefPower) {
-      baseSeries.splice(1, 0, { name: 'Expected Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.refPower }, z: 2, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.refPower]), xAxisIndex: 0, yAxisIndex: 0 });
+      baseSeries.splice(1, 0, { name: 'Expected Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.refPower }, z: 2, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.refPower]), xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' });
     }
 
     return baseSeries;
   }, [powerCurveData, processedSeriesData, theme, hasRefPower, dateRange]);
 
-  const formatTooltip = useCallback((params: unknown[]) => {
+  const formatTooltip = useCallback((params: any) => {
     const tooltipTheme = {
         backgroundColor: theme === 'dark' ? 'rgba(20, 20, 30, 0.9)' : 'rgba(255, 255, 255, 0.95)',
         textColor: theme === 'dark' ? '#f1f5f9' : '#1e293b',
@@ -163,7 +166,12 @@ const DataChart: React.FC = () => {
     const baseStyle = `font-family: sans-serif; font-size: 14px; color: ${tooltipTheme.textColor}; border-radius: 6px; border: 1px solid ${tooltipTheme.borderColor}; background-color: ${tooltipTheme.backgroundColor}; padding: 10px; min-width: 250px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);`;
     const hrStyle = `border-color: ${tooltipTheme.borderColor}; margin: 6px 0;`;
 
-    const firstParam = params[0] as { seriesType: string; seriesName?: string; data: { rawData?: TurbineEvent }; axisValue: number };
+    // params axis trigger için array olacak
+    if (!params || !Array.isArray(params) || params.length === 0) {
+      return '';
+    }
+
+    const firstParam = params[0] as { seriesType?: string; seriesName?: string; data?: { rawData?: TurbineEvent }; axisValue?: number; value?: any[] };
     if (!firstParam) return '';
 
     // Handle pin/interval series - skip tooltip for these
@@ -171,34 +179,112 @@ const DataChart: React.FC = () => {
       return '';
     }
 
+    // Scatter plot için özel handling
     if (firstParam.seriesType === 'scatter' && firstParam.data?.rawData) {
         const event = firstParam.data.rawData;
         if (!event || !event.eventType || !event.timestamp) return '';
         
+        // For scatter events, use the exact event timestamp
+        const scatterTimestamp = new Date(event.timestamp.getTime());
+        lastTooltipTimestamp.current = scatterTimestamp;
+        currentAxisPointerTimestamp.current = scatterTimestamp;
+        exactDisplayedTimestamp.current = scatterTimestamp;
+        
         useAppStore.getState().setLastTooltipFormat('detailed');
-        return `<div style="${baseStyle}"><strong>Event: ${event.eventType}</strong><hr style="${hrStyle}"><strong>Timestamp:</strong> ${format(event.timestamp, 'yyyy-MM-dd HH:mm:ss')}<br><strong>Description:</strong> ${event.description || 'No description available'}</div>`;
+        return `<div style="${baseStyle}"><strong>Event: ${event.eventType}</strong><hr style="${hrStyle}"><strong>Timestamp:</strong> ${format(scatterTimestamp, 'yyyy-MM-dd HH:mm:ss')}<br><strong>Description:</strong> ${event.description || 'No description available'}</div>`;
     }
 
-    const hoverTime = new Date(firstParam.axisValue);
-    const key = getTimeBucketKey(hoverTime);
-    const eventsInBucket = eventsByTimeBucket.get(key) || [];
-
-    let eventSummary = '<strong>No critical events in this minute.</strong>';
-    if (eventsInBucket.length > 0) {
-        eventSummary = eventsInBucket.map(e => `<div style="margin-top: 4px;"><strong>${format(e.timestamp!, 'HH:mm:ss')} - ${e.eventType}:</strong><br>${e.description}</div>`).join('');
+    // Axis trigger için timestamp'i axisValue'dan al
+    let hoverTime: Date;
+    if (firstParam.axisValue) {
+      hoverTime = new Date(firstParam.axisValue);
+    } else if (firstParam.value && Array.isArray(firstParam.value) && firstParam.value[0]) {
+      hoverTime = new Date(firstParam.value[0]);
+    } else {
+      return '';
     }
-
-    const powerPoint = powerCurveData.find(p => p.timestamp?.getTime() === hoverTime.getTime());
-    if (!powerPoint) return '';
-
-    // Tooltip formatına göre tooltip tipini belirle
-    const timeFormat = format(hoverTime, 'yyyy-MM-dd HH:mm:ss');
+    
+    // CRITICAL: Consistent timestamp calculation across tooltip and click handlers
+    // Find the nearest data point for more stable timestamp display
+    let stableTimestamp: Date;
+    
+    if (powerCurveData.length > 0) {
+      // Find the closest actual data point to provide stable timestamps
+      let closestPoint = null;
+      let minDistance = Infinity;
+      
+      for (const point of powerCurveData) {
+        if (point.timestamp) {
+          const distance = Math.abs(point.timestamp.getTime() - hoverTime.getTime());
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestPoint = point;
+          }
+        }
+      }
+      
+      // If we found a close data point (within 30 minutes), use its timestamp for stability
+      const thirtyMinutes = 30 * 60 * 1000;
+      if (closestPoint && minDistance <= thirtyMinutes) {
+        stableTimestamp = new Date(closestPoint.timestamp!.getTime());
+      } else {
+        // Otherwise, round the hover time to nearest minute for consistency
+        const roundedTime = Math.round(hoverTime.getTime() / (60 * 1000)) * (60 * 1000);
+        stableTimestamp = new Date(roundedTime);
+      }
+    } else {
+      // No data available, round to nearest minute
+      const roundedTime = Math.round(hoverTime.getTime() / (60 * 1000)) * (60 * 1000);
+      stableTimestamp = new Date(roundedTime);
+    }
+    
+    // Store the stable timestamp for click consistency
+    lastTooltipTimestamp.current = stableTimestamp;
+    currentAxisPointerTimestamp.current = stableTimestamp;
+    exactDisplayedTimestamp.current = stableTimestamp; // Store the exact timestamp that user sees
+    
+        // Tooltip formatına göre tooltip tipini belirle
+    const timeFormat = format(stableTimestamp, 'yyyy-MM-dd HH:mm:ss');
     const hasTimeDetails = timeFormat.includes(':');
     
     const tooltipFormat = hasTimeDetails ? 'detailed' : 'simple';
     useAppStore.getState().setLastTooltipFormat(tooltipFormat);
 
-    return `<div style="${baseStyle}"><strong>${timeFormat}</strong><br>Power: ${powerPoint.power.toFixed(2)} kW | Wind: ${powerPoint.windSpeed.toFixed(2)} m/s<hr style="${hrStyle}">${eventSummary}</div>`;
+    // Mouse konumundaki zamanın interpolasyonunu/yakınındaki veriyi bul
+    let displayData = null;
+    let eventSummary = '<strong>No critical events in this minute.</strong>';
+
+    // En yakın veri noktasını bul
+    let closestPowerPoint = null;
+    let minDistance = Infinity;
+    
+    for (const point of powerCurveData) {
+      if (point.timestamp) {
+        const distance = Math.abs(point.timestamp.getTime() - stableTimestamp.getTime());
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestPowerPoint = point;
+        }
+      }
+    }
+
+    if (closestPowerPoint) {
+      displayData = closestPowerPoint;
+      
+      // Event bilgilerini o zaman için göster
+      const key = getTimeBucketKey(stableTimestamp);
+      const eventsInBucket = eventsByTimeBucket.get(key) || [];
+
+      if (eventsInBucket.length > 0) {
+          eventSummary = eventsInBucket.map(e => `<div style="margin-top: 4px;"><strong>${format(e.timestamp!, 'HH:mm:ss')} - ${e.eventType}:</strong><br>${e.description}</div>`).join('');
+      }
+    }
+
+    if (!displayData) {
+      return `<div style="${baseStyle}"><strong>${timeFormat}</strong><br>No data available at this time</div>`;
+    }
+
+    return `<div style="${baseStyle}"><strong>${timeFormat}</strong><br>Power: ${displayData.power.toFixed(2)} kW | Wind: ${displayData.windSpeed.toFixed(2)} m/s<hr style="${hrStyle}">${eventSummary}</div>`;
   }, [eventsByTimeBucket, powerCurveData, theme]);
 
   const handleDataZoom = useCallback(() => {
@@ -220,108 +306,300 @@ const DataChart: React.FC = () => {
 
   const handleLegendSelectChanged = useCallback((e: { selected: Record<string, boolean> }) => setLegendSelected(e.selected), [setLegendSelected]);
 
-  const handleChartClick = useCallback((params: any) => {
-    let clickedTimestamp: Date | null = null;
-    
-    // First try to get timestamp from clicked data point
-    if (params.data && Array.isArray(params.data) && params.data[0]) {
-      clickedTimestamp = new Date(params.data[0]);
-    } else if (params.value && Array.isArray(params.value) && params.value[0]) {
-      clickedTimestamp = new Date(params.value[0]);
-    }
-    
-    // If no data point clicked, try coordinate conversion
-    if (!clickedTimestamp && chartRef.current && params.event) {
+  const handleAxisPointer = useCallback((params: any) => {
+    // Update current axis pointer timestamp whenever mouse moves
+    if (params && typeof params.offsetX === 'number' && chartRef.current) {
       try {
         const echartsInstance = chartRef.current.getEchartsInstance();
-        const isReady = echartsInstance.isDisposed() === false;
-        if (!isReady) return;
-        
-        // Try to convert pixel coordinates to chart coordinates
-        const pointInGrid = echartsInstance.convertFromPixel('grid', [params.event.offsetX, params.event.offsetY]);
-        
-        if (pointInGrid && pointInGrid[0] !== undefined && !isNaN(pointInGrid[0])) {
-          clickedTimestamp = new Date(pointInGrid[0]);
-        } else {
-          // Fallback: manual calculation based on chart dimensions
-          if (dateRange.start && dateRange.end && params.event.offsetX !== undefined) {
-            const chartWidth = echartsInstance.getWidth();
-            const gridLeft = chartWidth * 0.03;
-            const gridRight = chartWidth * 0.03;
-            const gridWidth = chartWidth - gridLeft - gridRight;
-            const relativeX = (params.event.offsetX - gridLeft) / gridWidth;
-            
-            if (relativeX >= 0 && relativeX <= 1) {
-              const timeRange = dateRange.end.getTime() - dateRange.start.getTime();
-              const clickedTime = dateRange.start.getTime() + (relativeX * timeRange);
-              clickedTimestamp = new Date(clickedTime);
-            }
-          }
+        const pointInGrid = echartsInstance.convertFromPixel('grid', [params.offsetX, params.offsetY || 0]);
+        if (pointInGrid && pointInGrid[0]) {
+          const timestamp = new Date(pointInGrid[0]);
+          currentAxisPointerTimestamp.current = timestamp;
         }
       } catch (error) {
-        // Continue silently
+        // Ignore conversion errors
+      }
+    }
+  }, []);
+
+  const handleChartClick = useCallback((params: any) => {
+    // Çoklu event tetiklemeyi önlemek için debounce
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    let clickedTimestamp: Date | null = null;
+    
+    // Check if this is a manual trigger from our wrapper div
+    if (params.manualTrigger && params.calculatedTimestamp) {
+      clickedTimestamp = params.calculatedTimestamp;
+    } else {
+      // PRIORITY 1: Use the exact timestamp that was displayed to user
+      if (exactDisplayedTimestamp.current) {
+        clickedTimestamp = exactDisplayedTimestamp.current;
+      } 
+      // PRIORITY 2: Use the exact timestamp from axis pointer for perfect consistency  
+      else if (currentAxisPointerTimestamp.current) {
+        clickedTimestamp = currentAxisPointerTimestamp.current;
+      } else if (lastTooltipTimestamp.current) {
+        // Fallback to tooltip timestamp
+        clickedTimestamp = lastTooltipTimestamp.current;
+      } else {
+        // Original ECharts event handling as last fallback
+        // First try to get timestamp from clicked data point
+        if (params.data && Array.isArray(params.data) && params.data[0]) {
+          clickedTimestamp = new Date(params.data[0]);
+        } else if (params.value && Array.isArray(params.value) && params.value[0]) {
+          clickedTimestamp = new Date(params.value[0]);
+        }
+        
+        // If no data point clicked, try coordinate conversion
+        if (!clickedTimestamp && chartRef.current && params.event) {
+          try {
+            const echartsInstance = chartRef.current.getEchartsInstance();
+            const isReady = echartsInstance.isDisposed() === false;
+            if (!isReady) return;
+            
+            // Use ECharts' built-in coordinate conversion for maximum precision
+            const pointInPixel = [params.event.offsetX, params.event.offsetY];
+            const pointInGrid = echartsInstance.convertFromPixel('grid', pointInPixel);
+            
+            if (pointInGrid && pointInGrid[0]) {
+              // Apply the same stable timestamp logic as tooltip for consistency
+              const rawTimestamp = new Date(pointInGrid[0]);
+              
+              // Use the same logic as tooltip to find stable timestamp
+              if (powerCurveData.length > 0) {
+                let closestPoint = null;
+                let minDistance = Infinity;
+                
+                for (const point of powerCurveData) {
+                  if (point.timestamp) {
+                    const distance = Math.abs(point.timestamp.getTime() - rawTimestamp.getTime());
+                    if (distance < minDistance) {
+                      minDistance = distance;
+                      closestPoint = point;
+                    }
+                  }
+                }
+                
+                const thirtyMinutes = 30 * 60 * 1000;
+                if (closestPoint && minDistance <= thirtyMinutes) {
+                  clickedTimestamp = new Date(closestPoint.timestamp!.getTime());
+                } else {
+                  const roundedTime = Math.round(rawTimestamp.getTime() / (60 * 1000)) * (60 * 1000);
+                  clickedTimestamp = new Date(roundedTime);
+                }
+              } else {
+                const roundedTime = Math.round(rawTimestamp.getTime() / (60 * 1000)) * (60 * 1000);
+                clickedTimestamp = new Date(roundedTime);
+              }
+            } else {
+              // Fallback to manual calculation with corrected grid boundaries
+              const option = echartsInstance.getOption() as any;
+              const grid = option.grid[0];
+              const chartWidth = echartsInstance.getWidth();
+              const chartHeight = echartsInstance.getHeight();
+              
+              // Use exact grid dimensions from ECharts
+              const gridLeft = typeof grid.left === 'string' ? 
+                (parseFloat(grid.left) / 100) * chartWidth : 
+                (grid.left || 60); // Default ECharts left margin
+              const gridRight = typeof grid.right === 'string' ? 
+                (parseFloat(grid.right) / 100) * chartWidth : 
+                (grid.right || 30); // Default ECharts right margin
+              const gridBottom = typeof grid.bottom === 'string' ? 
+                (parseFloat(grid.bottom) / 100) * chartHeight : 
+                (grid.bottom || 60); // Default ECharts bottom margin
+              const gridTop = 40; // Default ECharts top margin with title
+              
+              const gridWidth = chartWidth - gridLeft - gridRight;
+              
+              // Mouse koordinatlarının grid içinde olup olmadığını kontrol et
+              const mouseX = params.event.offsetX;
+              const mouseY = params.event.offsetY;
+              
+              if (mouseX >= gridLeft && mouseX <= (chartWidth - gridRight) && 
+                  mouseY >= gridTop && mouseY <= (chartHeight - gridBottom)) {
+                // Grid içindeki relatif pozisyonu hesapla (0-1 arası)
+                const relativeX = (mouseX - gridLeft) / gridWidth;
+                
+                if (relativeX >= 0 && relativeX <= 1 && dateRange.start && dateRange.end) {
+                  const timeRange = dateRange.end.getTime() - dateRange.start.getTime();
+                  const calculatedTime = dateRange.start.getTime() + (relativeX * timeRange);
+                  const rawTimestamp = new Date(calculatedTime);
+                  
+                  // Apply the same stable timestamp logic as tooltip
+                  if (powerCurveData.length > 0) {
+                    let closestPoint = null;
+                    let minDistance = Infinity;
+                    
+                    for (const point of powerCurveData) {
+                      if (point.timestamp) {
+                        const distance = Math.abs(point.timestamp.getTime() - rawTimestamp.getTime());
+                        if (distance < minDistance) {
+                          minDistance = distance;
+                          closestPoint = point;
+                        }
+                      }
+                    }
+                    
+                    const thirtyMinutes = 30 * 60 * 1000;
+                    if (closestPoint && minDistance <= thirtyMinutes) {
+                      clickedTimestamp = new Date(closestPoint.timestamp!.getTime());
+                    } else {
+                      const roundedTime = Math.round(rawTimestamp.getTime() / (60 * 1000)) * (60 * 1000);
+                      clickedTimestamp = new Date(roundedTime);
+                    }
+                  } else {
+                    const roundedTime = Math.round(rawTimestamp.getTime() / (60 * 1000)) * (60 * 1000);
+                    clickedTimestamp = new Date(roundedTime);
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('Grid click coordinate conversion failed:', error);
+          }
+        }
       }
     }
 
     if (!clickedTimestamp) return;
 
-    // Handle different chart modes
-    if (chartMode === 'pin') {
-      // Find the closest power data point for this timestamp
-      let closestPowerPoint = null;
-      let minDistance = Infinity;
-      
-      if (powerCurveData.length > 0) {
-        for (const point of powerCurveData) {
-          if (point.timestamp) {
-            const distance = Math.abs(point.timestamp.getTime() - clickedTimestamp.getTime());
-            if (distance < minDistance) {
-              minDistance = distance;
-              closestPowerPoint = point;
-            }
+    // Debounce the actual action to prevent multiple calls
+    debounceTimer.current = setTimeout(() => {
+      // Handle different chart modes
+      if (chartMode === 'pin') {
+        // Helper function to find data for pin creation
+        const findPinData = (targetTimestamp: Date) => {
+          if (powerCurveData.length === 0) {
+            return {
+              power: 0,
+              windSpeed: 0,
+              expectedPower: undefined,
+              isValid: false
+            };
           }
-        }
-      }
 
-      // Create pin even if no power data is available
-      const pin: ChartPin = {
-        id: generateId(),
-        timestamp: clickedTimestamp,
-        power: closestPowerPoint ? closestPowerPoint.power : 0,
-        windSpeed: closestPowerPoint ? closestPowerPoint.windSpeed : 0,
-        expectedPower: closestPowerPoint && closestPowerPoint.refPower > 0 ? closestPowerPoint.refPower : undefined,
-      };
-      
-      addChartPin(pin);
-    } else if (chartMode === 'interval') {
-      if (!pendingInterval) {
-        // Start new interval
-        setPendingInterval({ startTimestamp: clickedTimestamp });
-      } else {
-        // Complete interval
-        const startTime = pendingInterval.startTimestamp.getTime();
-        const endTime = clickedTimestamp.getTime();
+          // Check if target timestamp has time component (hours/minutes)
+          const hasTimeComponent = targetTimestamp.getHours() !== 0 || targetTimestamp.getMinutes() !== 0 || targetTimestamp.getSeconds() !== 0;
+          
+          if (hasTimeComponent) {
+            // For timestamps with time, look for data within 30 minutes
+            const thirtyMinutes = 30 * 60 * 1000; // 30 minutes in milliseconds
+            let closestPoint = null;
+            let minDistance = Infinity;
+            
+            for (const point of powerCurveData) {
+              if (point.timestamp) {
+                const distance = Math.abs(point.timestamp.getTime() - targetTimestamp.getTime());
+                if (distance <= thirtyMinutes && distance < minDistance) {
+                  minDistance = distance;
+                  closestPoint = point;
+                }
+              }
+            }
+            
+            if (closestPoint) {
+              return {
+                power: closestPoint.power,
+                windSpeed: closestPoint.windSpeed,
+                expectedPower: closestPoint.refPower > 0 ? closestPoint.refPower : undefined,
+                isValid: true
+              };
+            } else {
+              return {
+                power: 0,
+                windSpeed: 0,
+                expectedPower: undefined,
+                isValid: false,
+                message: "not valid data"
+              };
+            }
+          } else {
+            // For date-only timestamps, calculate daily averages
+            const startOfDay = new Date(targetTimestamp);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(targetTimestamp);
+            endOfDay.setHours(23, 59, 59, 999);
+            
+            const dayData = powerCurveData.filter(point => 
+              point.timestamp && 
+              point.timestamp >= startOfDay && 
+              point.timestamp <= endOfDay
+            );
+            
+            if (dayData.length === 0) {
+              return {
+                power: 0,
+                windSpeed: 0,
+                expectedPower: undefined,
+                isValid: false,
+                message: "not valid data"
+              };
+            }
+            
+            const powerSum = dayData.reduce((sum, point) => sum + point.power, 0);
+            const windSum = dayData.reduce((sum, point) => sum + point.windSpeed, 0);
+            const refPowerSum = dayData.reduce((sum, point) => sum + (point.refPower || 0), 0);
+            const refPowerCount = dayData.filter(point => point.refPower > 0).length;
+            
+            return {
+              power: powerSum / dayData.length,
+              windSpeed: windSum / dayData.length,
+              expectedPower: refPowerCount > 0 ? refPowerSum / refPowerCount : undefined,
+              isValid: true
+            };
+          }
+        };
+
+        const pinData = findPinData(clickedTimestamp);
         
-        const interval: ChartInterval = {
+        // Create pin with the calculated data
+        const pin: ChartPin = {
           id: generateId(),
-          startTimestamp: startTime < endTime ? pendingInterval.startTimestamp : clickedTimestamp,
-          endTimestamp: startTime < endTime ? clickedTimestamp : pendingInterval.startTimestamp,
+          timestamp: clickedTimestamp,
+          power: pinData.power,
+          windSpeed: pinData.windSpeed,
+          expectedPower: pinData.expectedPower,
+          powerValid: pinData.isValid,
+          windSpeedValid: pinData.isValid,
+          expectedPowerValid: pinData.isValid && pinData.expectedPower !== undefined,
         };
         
-        addChartInterval(interval);
-        setPendingInterval(null);
+        addChartPin(pin);
+      } else if (chartMode === 'interval') {
+        if (!pendingInterval) {
+          // Start new interval
+          setPendingInterval({ startTimestamp: clickedTimestamp });
+        } else {
+          // Complete interval
+          const startTime = pendingInterval.startTimestamp.getTime();
+          const endTime = clickedTimestamp.getTime();
+          
+          const interval: ChartInterval = {
+            id: generateId(),
+            startTimestamp: startTime < endTime ? pendingInterval.startTimestamp : clickedTimestamp,
+            endTimestamp: startTime < endTime ? clickedTimestamp : pendingInterval.startTimestamp,
+          };
+          
+          addChartInterval(interval);
+          setPendingInterval(null);
+        }
+      } else {
+        // Normal mode - just set selected timestamp
+        setSelectedChartTimestamp(clickedTimestamp);
       }
-    } else {
-      // Normal mode - just set selected timestamp
-      setSelectedChartTimestamp(clickedTimestamp);
-    }
+    }, 100); // 100ms debounce
   }, [setSelectedChartTimestamp, dateRange, chartMode, pendingInterval, powerCurveData, addChartPin, addChartInterval, setPendingInterval]);
 
   const onEvents = useMemo(() => ({
     datazoom: handleDataZoom,
     legendselectchanged: handleLegendSelectChanged,
     click: handleChartClick,
-  }), [handleDataZoom, handleLegendSelectChanged, handleChartClick]);
+    mousemove: handleAxisPointer,
+  }), [handleDataZoom, handleLegendSelectChanged, handleChartClick, handleAxisPointer]);
 
   const option = useMemo(() => {
     const legendData = ['Power (kW)', 'Wind Speed (m/s)', 'Fault', 'Safety Critical Fault'];
@@ -413,17 +691,40 @@ const DataChart: React.FC = () => {
     }
 
     return {
-      useUTC: true, // DÜZELTME: Bu satır, ECharts'ın saat dilimi dönüşümü yapmasını engeller.
       tooltip: {
-        trigger: 'axis', 
+        trigger: 'axis',
         formatter: formatTooltip, 
-        axisPointer: { type: 'cross', animation: false, label: { backgroundColor: '#505765' } }, 
+        axisPointer: { 
+          type: 'none',
+          animation: false,
+          snap: false,
+          triggerTooltip: true,
+          axis: 'x',
+          handle: {
+            show: false
+          },
+          label: {
+            show: false
+          },
+          lineStyle: {
+            opacity: 0
+          }
+        }, 
         backgroundColor: 'transparent', 
         borderColor: 'transparent', 
         textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' }, 
         extraCssText: 'box-shadow: none;',
         confine: true,
-        enterable: false
+        enterable: false,
+        showContent: true,
+        alwaysShowContent: false,
+        triggerOn: 'mousemove',
+        position: function (point: number[]) {
+          return [point[0] + 10, point[1] - 10];
+        },
+        appendToBody: false,
+        hideDelay: 0,
+        transitionDuration: 0
       },
       legend: { data: legendData, selected: legendSelected, textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' } },
       grid: [
@@ -436,7 +737,11 @@ const DataChart: React.FC = () => {
           gridIndex: 0,
           axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, 
           axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' },
-          triggerEvent: true // X ekseni tıklamalarını etkinleştir
+          triggerEvent: true,
+          axisPointer: {
+            snap: false,
+            triggerTooltip: false
+          }
         },
         {
           type: 'time',
@@ -494,6 +799,8 @@ const DataChart: React.FC = () => {
       ],
       series: [...series, ...sliderSeries],
       animation: false,
+      hoverLayerThreshold: 2,
+      useUTC: false
     };
   }, [dateRange, legendSelected, series, formatTooltip, theme, hasRefPower, chartIntervals, chartPins, pendingInterval]);
 
@@ -529,7 +836,146 @@ const DataChart: React.FC = () => {
       </div>
       
       <div className={styles.mainContent}>
-        <div className={styles.chartWrapper}>
+        <div className={styles.chartWrapper}
+             onMouseMove={chartMode !== 'normal' ? (e) => {
+               // Store current mouse position for precise coordinate calculation
+               const rect = e.currentTarget.getBoundingClientRect();
+               const mouseX = e.clientX - rect.left;
+               const mouseY = e.clientY - rect.top;
+               
+               // Store in a ref or global variable for click handler to use
+               if (chartRef.current) {
+                 (chartRef.current as any).lastMousePosition = { mouseX, mouseY };
+               }
+             } : undefined}
+             onClick={chartMode !== 'normal' ? (e) => {
+               // Sadece boş alanlara tıklama için - ECharts'ın handle etmediği durumlar
+               if (debounceTimer.current) {
+                 clearTimeout(debounceTimer.current);
+               }
+               
+               // Use the exact displayed timestamp if available (most accurate)
+               if (exactDisplayedTimestamp.current) {
+                 handleChartClick({
+                   event: { offsetX: 0, offsetY: 0 },
+                   data: null,
+                   value: null,
+                   manualTrigger: true,
+                   calculatedTimestamp: exactDisplayedTimestamp.current
+                 });
+                 return;
+               }
+               
+               const rect = e.currentTarget.getBoundingClientRect();
+               const mouseX = e.clientX - rect.left;
+               const mouseY = e.clientY - rect.top;
+
+               // Use precise coordinate conversion with ECharts if possible
+               if (chartRef.current) {
+                 try {
+                   const echartsInstance = chartRef.current.getEchartsInstance();
+                   const pointInGrid = echartsInstance.convertFromPixel('grid', [mouseX, mouseY]);
+                   
+                   if (pointInGrid && pointInGrid[0]) {
+                     const rawTimestamp = new Date(pointInGrid[0]);
+                     
+                     // Apply the same stable timestamp logic as tooltip
+                     let calculatedTimestamp: Date;
+                     if (powerCurveData.length > 0) {
+                       let closestPoint = null;
+                       let minDistance = Infinity;
+                       
+                       for (const point of powerCurveData) {
+                         if (point.timestamp) {
+                           const distance = Math.abs(point.timestamp.getTime() - rawTimestamp.getTime());
+                           if (distance < minDistance) {
+                             minDistance = distance;
+                             closestPoint = point;
+                           }
+                         }
+                       }
+                       
+                       const thirtyMinutes = 30 * 60 * 1000;
+                       if (closestPoint && minDistance <= thirtyMinutes) {
+                         calculatedTimestamp = new Date(closestPoint.timestamp!.getTime());
+                       } else {
+                         const roundedTime = Math.round(rawTimestamp.getTime() / (60 * 1000)) * (60 * 1000);
+                         calculatedTimestamp = new Date(roundedTime);
+                       }
+                     } else {
+                       const roundedTime = Math.round(rawTimestamp.getTime() / (60 * 1000)) * (60 * 1000);
+                       calculatedTimestamp = new Date(roundedTime);
+                     }
+                     
+                     handleChartClick({
+                       event: { offsetX: mouseX, offsetY: mouseY },
+                       data: null,
+                       value: null,
+                       manualTrigger: true,
+                       calculatedTimestamp: calculatedTimestamp
+                     });
+                     return;
+                   }
+                 } catch (error) {
+                   // Fall through to manual calculation
+                 }
+               }
+
+               // Fallback: Manual grid calculation with corrected boundaries
+               const gridLeft = rect.width * 0.06; // More accurate left margin
+               const gridRight = rect.width * 0.97; // More accurate right boundary  
+               const gridTop = rect.height * 0.08; // More accurate top margin
+               const gridBottom = rect.height * 0.82; // More accurate bottom boundary
+
+               if (mouseX >= gridLeft && mouseX <= gridRight && 
+                   mouseY >= gridTop && mouseY <= gridBottom) {
+                 
+                 const relativeX = (mouseX - gridLeft) / (gridRight - gridLeft);
+                 
+                 if (relativeX >= 0 && relativeX <= 1 && dateRange.start && dateRange.end) {
+                   const timeRange = dateRange.end.getTime() - dateRange.start.getTime();
+                   const clickedTime = dateRange.start.getTime() + (relativeX * timeRange);
+                   const rawTimestamp = new Date(clickedTime);
+                   
+                   // Apply the same stable timestamp logic as tooltip
+                   let clickedTimestamp: Date;
+                   if (powerCurveData.length > 0) {
+                     let closestPoint = null;
+                     let minDistance = Infinity;
+                     
+                     for (const point of powerCurveData) {
+                       if (point.timestamp) {
+                         const distance = Math.abs(point.timestamp.getTime() - rawTimestamp.getTime());
+                         if (distance < minDistance) {
+                           minDistance = distance;
+                           closestPoint = point;
+                         }
+                       }
+                     }
+                     
+                     const thirtyMinutes = 30 * 60 * 1000;
+                     if (closestPoint && minDistance <= thirtyMinutes) {
+                       clickedTimestamp = new Date(closestPoint.timestamp!.getTime());
+                     } else {
+                       const roundedTime = Math.round(rawTimestamp.getTime() / (60 * 1000)) * (60 * 1000);
+                       clickedTimestamp = new Date(roundedTime);
+                     }
+                   } else {
+                     const roundedTime = Math.round(rawTimestamp.getTime() / (60 * 1000)) * (60 * 1000);
+                     clickedTimestamp = new Date(roundedTime);
+                   }
+                   
+                   // Manual trigger ile çoklu event'i önle
+                   handleChartClick({
+                     event: { offsetX: mouseX, offsetY: mouseY },
+                     data: null,
+                     value: null,
+                     manualTrigger: true,
+                     calculatedTimestamp: clickedTimestamp
+                   });
+                 }
+               }
+             } : undefined}>
           <ReactECharts 
             key={theme + hasRefPower} 
             ref={chartRef} 
@@ -569,14 +1015,14 @@ const DataChart: React.FC = () => {
                     {format(pin.timestamp, 'yyyy-MM-dd HH:mm:ss')}
                   </div>
                   <div className={styles.dataPoint}>
-                    Power: {pin.power.toFixed(2)} kW
+                    Power: {pin.powerValid !== false ? `${pin.power.toFixed(2)} kW` : 'not valid data'}
                   </div>
                   <div className={styles.dataPoint}>
-                    Wind Speed: {pin.windSpeed.toFixed(2)} m/s
+                    Wind Speed: {pin.windSpeedValid !== false ? `${pin.windSpeed.toFixed(2)} m/s` : 'not valid data'}
                   </div>
-                  {pin.expectedPower && (
+                  {pin.expectedPower !== undefined && (
                     <div className={styles.dataPoint}>
-                      Expected Power: {pin.expectedPower.toFixed(2)} kW
+                      Expected Power: {pin.expectedPowerValid !== false ? `${pin.expectedPower.toFixed(2)} kW` : 'not valid data'}
                     </div>
                   )}
                 </div>
