@@ -212,8 +212,9 @@ const DataChart: React.FC = () => {
         const event = firstParam.data.rawData;
         if (!event || !event.eventType || !event.timestamp) return '';
         
-        // For scatter events, use the exact event timestamp
-        const scatterTimestamp = new Date(event.timestamp.getTime());
+        // For scatter events, use the exact event timestamp without any conversion
+        // The issue might be that ECharts is converting timezone automatically
+        const scatterTimestamp = event.timestamp; // Use original timestamp directly
         lastTooltipTimestamp.current = scatterTimestamp;
         currentAxisPointerTimestamp.current = scatterTimestamp;
         exactDisplayedTimestamp.current = scatterTimestamp;

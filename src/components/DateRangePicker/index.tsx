@@ -84,21 +84,19 @@ const DateRangePicker: React.FC = () => {
         <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 'bold', textAlign: 'center', mb: 1 }}>
           Select Date Range
         </Typography>
-        {/* DÜZELTME: LocalizationProvider'a timezone="UTC" ekleniyor */}
-        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={undefined} timezone="UTC">
+        {/* Use local timezone instead of UTC */}
+        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={undefined}>
           <DatePicker
             label="Start Date"
             value={startDate}
             onChange={handleStartDateChange}
             disabled={!startDate}
-            timezone="UTC" // Her bir seçiciye de eklemek daha garantilidir
           />
           <DatePicker
             label="End Date"
             value={endDate}
             onChange={handleEndDateChange}
             disabled={!endDate}
-            timezone="UTC" // Her bir seçiciye de eklemek daha garantilidir
           />
         </LocalizationProvider>
       </Box>
