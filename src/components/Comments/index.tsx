@@ -5,27 +5,32 @@ import { format } from 'date-fns';
 import type { CommentSelection } from '../../types';
 
 const Comments: React.FC = () => {
-  const { comments, addComment, newCommentSelection, setNewCommentSelection, chartPins, chartIntervals, loadCommentSelectionsToChart } = useAppStore();
+  const { 
+    comments, 
+    addComment, 
+    newCommentSelection, 
+    setNewCommentSelection, 
+    chartPins, 
+    chartIntervals, 
+    commentLogSelections,
+    loadCommentSelectionsToChart 
+  } = useAppStore();
   const [commentText, setCommentText] = useState('');
 
   const handleAddComment = () => {
     if (!commentText.trim()) return;
 
-    const newComment = {
-      id: Date.now(),
+    addComment({
       text: commentText,
       selection: newCommentSelection,
-      createdAt: new Date(),
-    };
-
-    addComment(newComment);
+    });
 
     setCommentText('');
     setNewCommentSelection(null); 
   };
   
   const formatSelection = (selection: CommentSelection | null): string => {
-    if (!selection || !selection.start) {
+    if (!selection?.start) {
       return 'General Comment';
     }
     
@@ -45,22 +50,55 @@ const Comments: React.FC = () => {
     loadCommentSelectionsToChart(commentId);
   };
 
+  const formatDuration = (startTime: Date, endTime: Date): string => {
+    const diffMs = endTime.getTime() - startTime.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    // 1 haftadan uzunsa (7 günden fazla)
+    if (diffDays >= 7) {
+      const days = diffDays;
+      const remainingHours = diffHours - (days * 24);
+      if (remainingHours > 0) {
+        return `${days} days ${remainingHours} hours`;
+      } else {
+        return `${days} days`;
+      }
+    }
+    // 1 haftadan kısaysa
+    else {
+      const hours = diffHours;
+      const remainingMinutes = diffMinutes - (hours * 60);
+      if (hours > 0) {
+        return `${hours} hours ${remainingMinutes} minutes`;
+      } else {
+        return `${diffMinutes} minutes`;
+      }
+    }
+  };
+
   return (
     <div className={styles.container}>
       <h3 className={styles.title}>Analyst Comments</h3>
       
       <div className={styles.addCommentSection}>
-        {(chartPins.length > 0 || chartIntervals.length > 0) && (
+        {(chartPins.length > 0 || chartIntervals.length > 0 || commentLogSelections.length > 0) && (
           <div className={styles.selectionsPreview}>
-            <h4>Selected Chart Elements (will be saved with comment):</h4>
+            <h4>Selected elements (will be saved with comment):</h4>
             {chartPins.map(pin => (
               <div key={pin.id} className={styles.previewItem}>
-                📍 Pin: {format(pin.timestamp, 'yyyy-MM-dd HH:mm:ss')} - {pin.power.toFixed(2)} kW
+                📍 Pin: {format(pin.timestamp, 'yyyy-MM-dd HH:mm:ss')}
               </div>
             ))}
             {chartIntervals.map(interval => (
               <div key={interval.id} className={styles.previewItem}>
-                📊 Interval: {format(interval.startTimestamp, 'MMM d HH:mm')} - {format(interval.endTimestamp, 'MMM d HH:mm')}
+                📊 Interval: {format(interval.startTimestamp, 'MMM d HH:mm')} - {format(interval.endTimestamp, 'MMM d HH:mm')} ({formatDuration(interval.startTimestamp, interval.endTimestamp)})
+              </div>
+            ))}
+            {commentLogSelections.map(log => (
+              <div key={log.id} className={styles.previewItem}>
+                📝 Log: {log.name} ({format(log.timestamp!, 'HH:mm:ss')})
               </div>
             ))}
           </div>
@@ -70,7 +108,6 @@ const Comments: React.FC = () => {
           onChange={(e) => setCommentText(e.target.value)}
           placeholder="Write your comment..."
           className={styles.textarea}
-          disabled={false} 
         />
         <button
           onClick={handleAddComment}
@@ -100,6 +137,17 @@ const Comments: React.FC = () => {
                 )}
               </div>
               
+              {(comment.logs && comment.logs.length > 0) && (
+                <div className={styles.commentSelections}>
+                  <h5>Attached Logs:</h5>
+                  {comment.logs.map(log => (
+                    <div key={log.id} className={styles.selectionDetail}>
+                      📝 {format(log.timestamp!, 'yyyy-MM-dd HH:mm:ss')} - {log.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {(comment.pins && comment.pins.length > 0) && (
                 <div className={styles.commentSelections}>
                   <h5>Chart Pins:</h5>
@@ -121,7 +169,7 @@ const Comments: React.FC = () => {
                   {comment.intervals.map(interval => (
                     <div key={interval.id} className={styles.selectionDetail}>
                       📊 {format(interval.startTimestamp, 'MMM d HH:mm')} - {format(interval.endTimestamp, 'MMM d HH:mm')} 
-                      ({Math.round((interval.endTimestamp.getTime() - interval.startTimestamp.getTime()) / (1000 * 60))} min)
+                      ({formatDuration(interval.startTimestamp, interval.endTimestamp)})
                     </div>
                   ))}
                 </div>

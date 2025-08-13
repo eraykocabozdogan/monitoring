@@ -13,6 +13,34 @@ const generateId = (): string => {
   return Math.random().toString(36).substr(2, 9);
 };
 
+const formatDuration = (startTime: Date, endTime: Date): string => {
+  const diffMs = endTime.getTime() - startTime.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  // 1 haftadan uzunsa (7 günden fazla)
+  if (diffDays >= 7) {
+    const days = diffDays;
+    const remainingHours = diffHours - (days * 24);
+    if (remainingHours > 0) {
+      return `${days} days ${remainingHours} hours`;
+    } else {
+      return `${days} days`;
+    }
+  }
+  // 1 haftadan kısaysa
+  else {
+    const hours = diffHours;
+    const remainingMinutes = diffMinutes - (hours * 60);
+    if (hours > 0) {
+      return `${hours} hours ${remainingMinutes} minutes`;
+    } else {
+      return `${diffMinutes} minutes`;
+    }
+  }
+};
+
 const DataChart: React.FC = () => {
   const {
     powerCurveData,
@@ -655,38 +683,112 @@ const DataChart: React.FC = () => {
       });
     }
 
-    // Add interval markers as line segments
+    // Add interval markers as line segments with collision detection
     if (chartIntervals.length > 0) {
       const intervalData: any[] = [];
       
-      chartIntervals.forEach(interval => {
-        intervalData.push({
-          value: [interval.startTimestamp.getTime(), 0.5],
-        });
-        intervalData.push({
-          value: [interval.endTimestamp.getTime(), 0.5],
-        });
-        intervalData.push({
-          value: [null, null], // Break in line
-        });
+      // Function to check if two intervals overlap
+      const intervalsOverlap = (interval1: any, interval2: any): boolean => {
+        if (!interval1 || !interval2 || 
+            !interval1.startTimestamp || !interval1.endTimestamp ||
+            !interval2.startTimestamp || !interval2.endTimestamp) {
+          return false;
+        }
+        return interval1.startTimestamp < interval2.endTimestamp && 
+               interval2.startTimestamp < interval1.endTimestamp;
+      };
+      
+      // Assign y positions to avoid overlaps using a safer algorithm
+      const intervalsWithLevels: any[] = [];
+      
+      chartIntervals.forEach((interval, index) => {
+        let level = 0.3; // Start from bottom level
+        const usedLevels = new Set<number>();
+        
+        // Check overlap with all previously processed intervals
+        for (let i = 0; i < index; i++) {
+          const previousInterval = chartIntervals[i];
+          const previousProcessedInterval = intervalsWithLevels[i];
+          
+          if (intervalsOverlap(interval, previousInterval)) {
+            // Mark this level as used
+            if (previousProcessedInterval && previousProcessedInterval.level !== undefined) {
+              usedLevels.add(Math.round(previousProcessedInterval.level * 10) / 10); // Round to 1 decimal
+            }
+          }
+        }
+        
+        // Find the lowest available level with safety limit
+        let attempts = 0;
+        const maxAttempts = 20; // Prevent infinite loops
+        
+        while (usedLevels.has(Math.round(level * 10) / 10) && attempts < maxAttempts) {
+          level += 0.2; // Move to next level
+          level = Math.round(level * 10) / 10; // Round to prevent floating point issues
+          attempts++;
+        }
+        
+        // If we hit the max attempts, use a fallback level
+        if (attempts >= maxAttempts) {
+          level = 0.3 + (index * 0.2); // Fallback: use index-based level
+          level = Math.round(level * 10) / 10;
+        }
+        
+        // Add the processed interval to our array
+        intervalsWithLevels.push({ ...interval, level });
+      });
+      
+      // Group intervals by level for different series with different colors
+      const levelGroups = new Map<number, any[]>();
+      
+      intervalsWithLevels.forEach(interval => {
+        if (!interval || interval.level === undefined) {
+          return; // Skip invalid intervals
+        }
+        
+        if (!levelGroups.has(interval.level)) {
+          levelGroups.set(interval.level, []);
+        }
+        
+        const levelData = levelGroups.get(interval.level)!;
+        
+        // Ensure timestamps are valid
+        if (interval.startTimestamp && interval.endTimestamp) {
+          levelData.push({
+            value: [interval.startTimestamp.getTime(), interval.level],
+          });
+          levelData.push({
+            value: [interval.endTimestamp.getTime(), interval.level],
+          });
+          levelData.push({
+            value: [null, null], // Break in line
+          });
+        }
       });
 
-      sliderSeries.push({
-        name: 'Chart Intervals',
-        type: 'line',
-        data: intervalData,
-        xAxisIndex: 1,
-        yAxisIndex: 2,
-        showInLegend: false,
-        silent: true,
-        lineStyle: {
-          color: '#10b981',
-          width: 6,
-          opacity: 0.7
-        },
-        showSymbol: false,
-        zlevel: 99,
-        tooltip: { show: false }
+      // Create a series for each level with slightly different colors
+      const colors = ['#10b981', '#059669', '#047857', '#065f46', '#064e3b'];
+      
+      let levelIndex = 0;
+      levelGroups.forEach((data) => {
+        sliderSeries.push({
+          name: `Chart Intervals Level ${levelIndex}`,
+          type: 'line',
+          data: data,
+          xAxisIndex: 1,
+          yAxisIndex: 2,
+          showInLegend: false,
+          silent: true,
+          lineStyle: {
+            color: colors[levelIndex % colors.length],
+            width: 6,
+            opacity: 0.7
+          },
+          showSymbol: false,
+          zlevel: 99,
+          tooltip: { show: false }
+        });
+        levelIndex++;
       });
     }
 
@@ -1049,7 +1151,7 @@ const DataChart: React.FC = () => {
                     To: {format(interval.endTimestamp, 'yyyy-MM-dd HH:mm:ss')}
                   </div>
                   <div className={styles.intervalRange}>
-                    Duration: {Math.round((interval.endTimestamp.getTime() - interval.startTimestamp.getTime()) / (1000 * 60))} minutes
+                    Duration: {formatDuration(interval.startTimestamp, interval.endTimestamp)}
                   </div>
                 </div>
               </div>

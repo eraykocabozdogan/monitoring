@@ -1,4 +1,4 @@
-import React, { memo, useRef, useEffect } from 'react';
+import React, { memo, useRef, useEffect, useMemo } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import type { TurbineEvent } from '../../types/index.js';
 import styles from './CriticalLogs.module.css';
@@ -9,15 +9,33 @@ interface CriticalLogsProps {
   logs: TurbineEvent[];
 }
 
-const LogRow = memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: TurbineEvent[] }) => {
-  const log = data[index];
+const LogRow = memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: { logs: TurbineEvent[], commentLogSelections: TurbineEvent[], toggleLogCommentSelection: (log: TurbineEvent) => void } }) => {
+  const { logs, commentLogSelections, toggleLogCommentSelection } = data;
+  const log = logs[index];
   
-  // DÜZELTME: Zamanı, tarayıcının yerel saatine çevirmeden, doğrudan UTC olarak gösteriyoruz.
+  const isSelected = commentLogSelections.some(selectedLog => selectedLog.id === log.id);
+  
   const dateStr = log.timestamp ? log.timestamp.toISOString().slice(0, 10) : '--';
   const timeStr = log.timestamp ? log.timestamp.toISOString().slice(11, 19) : '--';
 
+  const handleCommentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleLogCommentSelection(log);
+  };
+
   return (
     <div className={styles.tableRow} style={style}>
+      <div className={`${styles.tableCell} ${styles.commentCell}`}>
+        <button 
+          onClick={handleCommentClick} 
+          className={`${styles.commentButton} ${isSelected ? styles.selected : ''}`}
+          title={isSelected ? "Remove from comment" : "Add to comment"}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+      </div>
       <div className={styles.tableCell}>{dateStr}</div>
       <div className={styles.tableCell}>{timeStr}</div>
       <div className={styles.tableCell}>{log.status || '--'}</div>
@@ -37,7 +55,9 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
     selectedChartTimestamp, 
     setSelectedChartTimestamp,
     selectedFaultCategory,
-    setSelectedFaultCategory 
+    setSelectedFaultCategory,
+    commentLogSelections,
+    toggleLogCommentSelection
   } = useAppStore();
   const listRef = useRef<List>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -111,10 +131,15 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
     }
   }, [selectedChartTimestamp, logs, setSelectedChartTimestamp]);
 
+  const itemData = useMemo(() => ({
+    logs,
+    commentLogSelections,
+    toggleLogCommentSelection
+  }), [logs, commentLogSelections, toggleLogCommentSelection]);
+
   return (
     <>
       {isFilterModalOpen && <FilterModal />}
-
       <div ref={containerRef} className={styles.logsCard}>
         <div className={styles.header}>
           <h2 className={styles.title}>
@@ -144,6 +169,7 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
         
         <div className={styles.tableContainer}>
           <div className={styles.tableHeader}>
+            <div className={`${styles.tableCell} ${styles.commentCell}`}>Add</div>
             <div className={styles.tableCell}>Date</div>
             <div className={styles.tableCell}>Time</div>
             <div className={styles.tableCell}>Status</div>
@@ -162,7 +188,7 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
                 itemCount={logs.length}
                 itemSize={45}
                 width="100%"
-                itemData={logs}
+                itemData={itemData}
               >
                 {LogRow}
               </List>

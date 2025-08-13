@@ -7,7 +7,7 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Kartın dışına taşmayı engelle */
+  overflow: hidden;
 }
 
 .header {
@@ -73,17 +73,15 @@
   background-color: var(--color-background-secondary);
 }
 
-/* Tablo yapısını div'lerle yeniden oluşturuyoruz */
 .tableContainer {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--color-border);
   border-radius: 4px;
-  overflow: hidden; /* İçerideki kaydırma çubuğunun düzgün çalışması için */
+  overflow: hidden;
 }
 
-/* Ortak satır ve başlık stili */
 .tableHeader, .tableRow {
   display: flex;
   width: 100%;
@@ -94,7 +92,7 @@
   background-color: var(--color-background-hover);
   font-weight: 600;
   flex-shrink: 0;
-  position: sticky; /* Gerekirse başlığı sabitlemek için */
+  position: sticky;
   top: 0;
   z-index: 1;
 }
@@ -105,34 +103,62 @@
 
 .tableBody {
   flex-grow: 1;
-  overflow: auto; /* Sadece body'nin kaydırılmasını sağlar */
+  overflow: auto;
 }
 
-/* Sütun genişliklerini yöneten hücre stili */
 .tableCell {
   padding: 12px 8px;
   font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-shrink: 0; /* Hücrelerin küçülmesini engeller */
+  flex-shrink: 0;
   display: flex;
   align-items: center;
 }
 
-/* Sütun genişliklerini burada belirliyoruz */
-.tableCell:nth-child(1) { width: 12%; } /* Date */
-.tableCell:nth-child(2) { width: 9%; }  /* Time */
-.tableCell:nth-child(3) { width: 8%; }  /* Status */
-.tableCell:nth-child(4) { width: 12%; } /* Name */
-.tableCell:nth-child(5) { width: 12%; } /* Event Type */
-.tableCell:nth-child(6) { width: 27%; } /* Description (en geniş) */
-.tableCell:nth-child(7) { width: 10%; } /* Category */
-.tableCell:nth-child(8) { width: 10%; } /* CCU Event */
-
+.tableCell.commentCell {
+  flex: 0 0 50px;
+  justify-content: center;
+  padding: 12px 0;
+}
+.tableCell:nth-child(2) { width: 11%; }
+.tableCell:nth-child(3) { width: 8%; }
+.tableCell:nth-child(4) { width: 8%; }
+.tableCell:nth-child(5) { width: 12%; }
+.tableCell:nth-child(6) { width: 12%; }
+.tableCell:nth-child(7) { width: 25%; }
+.tableCell:nth-child(8) { width: 10%; }
+.tableCell:nth-child(9) { width: 10%; }
 
 .noLogs {
   text-align: center;
   color: var(--color-text-secondary);
   padding: 40px;
+}
+
+.commentButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.commentButton:hover {
+  background-color: rgba(0,0,0,0.1);
+  color: var(--color-brand);
+}
+
+.commentButton.selected {
+  color: var(--color-brand);
+}
+
+.commentButton.selected svg {
+  fill: var(--color-brand);
 }

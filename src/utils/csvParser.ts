@@ -31,10 +31,8 @@ interface ParsedFileResult {
   lightweightData?: LightweightLogEvent[];
 }
 
-// DÜZELTME: Zaman damgası dizesini her zaman geçerli bir ISO formatına (YYYY-MM-DDTHH:mm:ss.sssZ) dönüştüren fonksiyon
 const createUTCDate = (dateString: string): Date | null => {
     if (!dateString || typeof dateString !== 'string') return null;
-    // "2024-02-17 03:14:35.050" -> "2024-02-17T03:14:35.050Z"
     const isoString = dateString.trim().replace(' ', 'T') + 'Z';
     const date = new Date(isoString);
     return isNaN(date.getTime()) ? null : date;
@@ -74,12 +72,14 @@ const parseFile = (file: File): Promise<ParsedFileResult> => {
           const logData: TurbineEvent[] = [];
           const lightweightLogData: LightweightLogEvent[] = [];
 
-          results.data.forEach((row) => {
+          results.data.forEach((row, index) => {
             const timestamp = createUTCDate(row['Timestamp']);
             if (timestamp) {
               const powerValue = row['Power (kW)'] ? String(row['Power (kW)']).replace(/,/g, '') : undefined;
+              const uniqueId = `${timestamp.getTime()}-${row['Name']}-${index}`;
 
               logData.push({
+                id: uniqueId,
                 timestamp,
                 status: row['Status'],
                 name: row['Name'],
