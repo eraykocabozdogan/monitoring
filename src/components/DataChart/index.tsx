@@ -831,8 +831,8 @@ const DataChart: React.FC = () => {
       },
       legend: { data: legendData, selected: legendSelected, textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' } },
       grid: [
-        { left: '3%', right: '3%', bottom: '15%', containLabel: true, triggerEvent: true },
-        { left: '3%', right: '3%', bottom: '5%', height: '8%', show: false }
+        { left: '3%', right: '3%', bottom: '20%', containLabel: true, triggerEvent: true },
+        { left: '3%', right: '3%', bottom: '7%', height: '8%', show: false }
       ],
       xAxis: [
         { 
@@ -897,7 +897,9 @@ const DataChart: React.FC = () => {
           type: 'slider', 
           startValue: dateRange?.start?.getTime(), 
           endValue: dateRange?.end?.getTime(), 
-          textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }
+          textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' },
+          bottom: '2%',
+          height: '5%'
         }
       ],
       series: [...series, ...sliderSeries],
