@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption, ECElementEvent } from 'echarts';
-import type { TooltipComponentFormatterCallback } from 'echarts';
 import { useAppStore } from '../../store/useAppStore';
 import { calculateWeeklyMetrics } from '../../utils/kpiAggregator';
 import { startOfWeek, endOfWeek, eachWeekOfInterval } from 'date-fns';
@@ -73,20 +72,20 @@ const WeeklyKpiChart: React.FC = () => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      formatter: (params) => {
-          if (!Array.isArray(params)) return '';
-          const barData = params.find(p => p.seriesType === 'bar');
-          const lineData = params.find(p => p.seriesType === 'line');
-          if (!barData) return '';
-          let tooltip = `${barData.name}<br/>`;
-          tooltip += `${currentKpi.name}: ${(barData.value as number).toFixed(2)}%<br/>`;
-          if (lineData) {
-            tooltip += `Target Average: ${(lineData.value as number).toFixed(2)}%<br/>`;
-            const difference = (barData.value as number) - (lineData.value as number);
-            tooltip += `Difference: ${difference > 0 ? '+' : ''}${difference.toFixed(2)}%<br/>`;
-          }
-          tooltip += '<br/><small>Click bar to filter to this week</small>';
-          return tooltip;
+      formatter: (params: any) => { // formatter can stay as any for simplicity with complex strings
+        if (!Array.isArray(params)) return '';
+        const barData = params.find(p => p.seriesType === 'bar');
+        const lineData = params.find(p => p.seriesType === 'line');
+        if (!barData) return '';
+        let tooltip = `${barData.name}<br/>`;
+        tooltip += `${currentKpi.name}: ${(barData.value as number).toFixed(2)}%<br/>`;
+        if (lineData) {
+          tooltip += `Target Average: ${(lineData.value as number).toFixed(2)}%<br/>`;
+          const difference = (barData.value as number) - (lineData.value as number);
+          tooltip += `Difference: ${difference > 0 ? '+' : ''}${difference.toFixed(2)}%<br/>`;
+        }
+        tooltip += '<br/><small>Click bar to filter to this week</small>';
+        return tooltip;
       },
     },
     grid: {

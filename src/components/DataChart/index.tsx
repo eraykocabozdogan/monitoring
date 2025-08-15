@@ -1,7 +1,6 @@
 import React, { useRef, useMemo, useCallback, memo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import type { EChartsOption, ECElementEvent } from 'echarts';
-import type { TooltipComponentFormatterCallback } from 'echarts';
+import type { EChartsOption, ECElementEvent, TooltipComponentFormatterCallback } from 'echarts';
 import { useAppStore } from '../../store/useAppStore';
 import { format, getMinutes, getHours, getDate, getMonth, getYear } from 'date-fns';
 import type { PowerCurvePoint, TurbineEvent, ChartPin, ChartInterval } from '../../types/index';
@@ -176,15 +175,15 @@ const DataChart: React.FC = () => {
         }
     }
 
-    const baseSeries: EChartsOption['series'] = [
-      { name: 'Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.power }, z: 3, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.power]), xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' },
-      { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, xAxisIndex: 0, showSymbol: false, lineStyle: { width: 1.5, color: colors.windLine, opacity: 0.75 }, areaStyle: { color: colors.windArea, opacity: 0.5 }, itemStyle: { opacity: 1 }, z: 1, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.windSpeed]), triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' },
-      { name: 'Fault', type: 'scatter', symbol: 'diamond', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.faultEvents, zlevel: 10, xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, emphasis: { disabled: true }, cursor: 'default' },
-      { name: 'Safety Critical Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.criticalFault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11, xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, emphasis: { disabled: true }, cursor: 'default' }
+    const baseSeries = [
+      { name: 'Power (kW)', type: 'bar' as const, barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.power }, z: 3, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.power]), xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' },
+      { name: 'Wind Speed (m/s)', type: 'line' as const, yAxisIndex: 1, xAxisIndex: 0, showSymbol: false, lineStyle: { width: 1.5, color: colors.windLine, opacity: 0.75 }, areaStyle: { color: colors.windArea, opacity: 0.5 }, itemStyle: { opacity: 1 }, z: 1, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.windSpeed]), triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' },
+      { name: 'Fault', type: 'scatter' as const, symbol: 'diamond', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.faultEvents, zlevel: 10, xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, emphasis: { disabled: true }, cursor: 'default' },
+      { name: 'Safety Critical Fault', type: 'scatter' as const, symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.criticalFault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11, xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, emphasis: { disabled: true }, cursor: 'default' }
     ];
 
-    if (hasRefPower && Array.isArray(baseSeries)) {
-      baseSeries.splice(1, 0, { name: 'Expected Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.refPower }, z: 2, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.refPower]), xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' });
+    if (hasRefPower) {
+      baseSeries.splice(1, 0, { name: 'Expected Power (kW)', type: 'bar' as const, barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.refPower }, z: 2, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.refPower]), xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' });
     }
 
     return baseSeries;
@@ -225,7 +224,7 @@ const DataChart: React.FC = () => {
 
     let hoverTime: Date;
     if (firstParam.axisValue) {
-      hoverTime = new Date(firstParam.axisValue);
+      hoverTime = new Date(firstParam.axisValue as any);
     } else if (firstParam.value && Array.isArray(firstParam.value) && firstParam.value[0]) {
       hoverTime = new Date(firstParam.value[0]);
     } else {
@@ -461,7 +460,7 @@ const DataChart: React.FC = () => {
       legendData.splice(1, 0, 'Expected Power (kW)');
     }
 
-    const sliderSeries: EChartsOption['series'] = [];
+    const sliderSeries: any[] = [];
     if (chartPins.length > 0 || pendingInterval) {
       const pinData = chartPins.map(pin => ({ value: [pin.timestamp.getTime(), 0.5], symbol: 'circle', symbolSize: 12, itemStyle: { color: '#3b82f6', borderColor: '#ffffff', borderWidth: 2 } }));
       if (pendingInterval) {
@@ -500,9 +499,7 @@ const DataChart: React.FC = () => {
       const colors = ['#10b981', '#059669', '#047857', '#065f46', '#064e3b'];
       let levelIndex = 0;
       levelGroups.forEach((data) => {
-        if (Array.isArray(sliderSeries)) {
           sliderSeries.push({ name: `Chart Intervals Level ${levelIndex}`, type: 'line', data: data, xAxisIndex: 1, yAxisIndex: 2, silent: true, lineStyle: { color: colors[levelIndex % colors.length], width: 6, opacity: 0.7 }, showSymbol: false, zlevel: 99, tooltip: { show: false } });
-        }
         levelIndex++;
       });
     }
