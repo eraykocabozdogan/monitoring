@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
+import type { EChartsOption, ECElementEvent } from 'echarts';
 import { useAppStore } from '../../store/useAppStore';
 import { calculateFaultCategoryDowntimes } from '../../utils/calculations';
 import styles from './FaultDistributionChart.module.css';
@@ -28,7 +29,6 @@ const FaultDistributionChart: React.FC = () => {
     });
 
     if (faultChartMode === 'count') {
-      // Count-based calculation (existing logic)
       const categoryCounts = new Map<string, number>();
       filteredLogs.forEach(log => {
         const category = log.category || 'Unknown';
@@ -36,21 +36,20 @@ const FaultDistributionChart: React.FC = () => {
       });
       return Array.from(categoryCounts.entries()).map(([name, value]) => ({ name, value }));
     } else {
-      // Downtime-based calculation
       const categoryDowntimes = calculateFaultCategoryDowntimes(logEvents, dateRange);
       return Array.from(categoryDowntimes.entries())
         .filter(([, value]) => value > 0)
         .map(([name, value]) => ({ 
           name, 
-          value: Math.round(value * 100) / 100 // Round to 2 decimal places
+          value: Math.round(value * 100) / 100 
         }));
     }
   }, [logEvents, dateRange, faultChartMode]);
 
-  const option = {
+  const option: EChartsOption = {
     tooltip: {
       trigger: 'item',
-      formatter: (params: any) => {
+      formatter: (params: any) => { // Tooltip formatter for complex strings can remain flexible
         const unit = faultChartMode === 'count' ? 'events' : 'hours';
         return `${params.seriesName}<br/>${params.name}: ${params.value} ${unit} (${params.percent}%)`;
       },
@@ -78,13 +77,12 @@ const FaultDistributionChart: React.FC = () => {
       pageIconColor: theme === 'dark' ? '#f9fafb' : '#1f2937',
       pageIconInactiveColor: theme === 'dark' ? '#6b7280' : '#9ca3af',
       selected: (() => {
-        // Priority: selectedFaultCategory > logFilters.category > show all
         if (selectedFaultCategory) {
           return Object.fromEntries(chartData.map(d => [d.name, d.name === selectedFaultCategory]));
         } else if (logFilters.category && logFilters.category.length > 0) {
           return Object.fromEntries(chartData.map(d => [d.name, logFilters.category!.includes(d.name)]));
         }
-        return undefined; // Show all
+        return undefined;
       })(),
     },
     series: [
@@ -121,11 +119,10 @@ const FaultDistributionChart: React.FC = () => {
     ],
   };
   
-  const handleChartClick = (params: any) => {
-    if (params.componentType === 'series') {
-      const clickedCategory = params.name;
+  const handleChartClick = (params: ECElementEvent) => {
+    if (params.componentType === 'series' && params.name) {
+      const clickedCategory = params.name as string;
       
-      // Clear category filter from logFilters when using pie chart selection
       const currentFilters = useAppStore.getState().logFilters;
       if (currentFilters.category && currentFilters.category.length > 0) {
         const newFilters = { ...currentFilters };
@@ -134,42 +131,35 @@ const FaultDistributionChart: React.FC = () => {
         useAppStore.getState().applyLogFilters();
       }
       
-      // Toggle selection: if already selected, deselect; otherwise select
       setSelectedFaultCategory(selectedFaultCategory === clickedCategory ? null : clickedCategory);
     }
   };
 
-  const handleLegendSelectChanged = (params: any) => {
+  const handleLegendSelectChanged = (params: { type: 'legendselectchanged', name: string, selected: Record<string, boolean> }) => {
     const selectedCategories = Object.keys(params.selected).filter(key => params.selected[key]);
     
-    // Clear selectedFaultCategory when using legend selection
     if (selectedFaultCategory) {
       setSelectedFaultCategory(null);
     }
     
-    // Update log filters to include selected categories
     const currentFilters = useAppStore.getState().logFilters;
     const newFilters = {
       ...currentFilters,
       category: selectedCategories.length > 0 ? selectedCategories : undefined
     };
     
-    // Apply the filter
     useAppStore.getState().setTempLogFilters(newFilters);
     useAppStore.getState().applyLogFilters();
   };
 
   const toggleChartMode = () => {
     setFaultChartMode(faultChartMode === 'count' ? 'downtime' : 'count');
-    // Clear selection when switching modes
     setSelectedFaultCategory(null);
   };
 
   const handleClearFilter = () => {
-    // Clear selectedFaultCategory
     setSelectedFaultCategory(null);
     
-    // Also clear category filter from logFilters
     const currentFilters = useAppStore.getState().logFilters;
     if (currentFilters.category && currentFilters.category.length > 0) {
       const newFilters = { ...currentFilters };
@@ -223,8 +213,8 @@ const FaultDistributionChart: React.FC = () => {
             option={option} 
             style={{ height: '100%', width: '100%' }}
             onEvents={{
-              click: handleChartClick,
-              legendselectchanged: handleLegendSelectChanged
+              'click': handleChartClick,
+              'legendselectchanged': handleLegendSelectChanged
             }}
           />
         ) : (

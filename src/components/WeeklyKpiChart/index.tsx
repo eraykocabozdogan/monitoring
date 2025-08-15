@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
+import type { EChartsOption, ECElementEvent } from 'echarts';
+import type { TooltipComponentFormatterCallbackParams } from 'echarts/types/dist/shared';
 import { useAppStore } from '../../store/useAppStore';
 import { calculateWeeklyMetrics } from '../../utils/kpiAggregator';
 import { startOfWeek, endOfWeek, eachWeekOfInterval } from 'date-fns';
@@ -41,12 +43,10 @@ const WeeklyKpiChart: React.FC = () => {
 
   const currentKpi = kpiDetails[selectedKpi];
 
-  // Handle chart click to update date range to selected week
-  const handleChartClick = (params: any) => {
-    if (params.componentType === 'series' && params.seriesType === 'bar' && weeklyData && weeklyData.labels[params.dataIndex]) {
+  const handleChartClick = (params: ECElementEvent) => {
+    if (params.componentType === 'series' && params.seriesType === 'bar' && weeklyData && typeof params.dataIndex === 'number' && weeklyData.labels[params.dataIndex]) {
       const weekIndex = params.dataIndex;
       
-      // Get all weeks in the current date range
       const weeks = eachWeekOfInterval(
         { start: dateRange.start!, end: dateRange.end! },
         { weekStartsOn: 1 }
@@ -56,7 +56,6 @@ const WeeklyKpiChart: React.FC = () => {
         const weekStart = startOfWeek(weeks[weekIndex], { weekStartsOn: 1 });
         const weekEnd = endOfWeek(weeks[weekIndex], { weekStartsOn: 1 });
         
-        // Ensure we don't go beyond the original date range
         const effectiveStart = new Date(Math.max(dateRange.start!.getTime(), weekStart.getTime()));
         const effectiveEnd = new Date(Math.min(dateRange.end!.getTime(), weekEnd.getTime()));
         
@@ -65,7 +64,7 @@ const WeeklyKpiChart: React.FC = () => {
     }
   };
 
-  const option = {
+  const option: EChartsOption = {
     title: {
       text: currentKpi.title,
       left: 'center',
@@ -74,15 +73,16 @@ const WeeklyKpiChart: React.FC = () => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      // DÜZELTME: 'params' artık bir dizi olarak doğru şekilde işleniyor.
-      formatter: (params: any[]) => {
+      formatter: (params: TooltipComponentFormatterCallbackParams) => {
+        if (!Array.isArray(params)) return '';
         const barData = params.find(p => p.seriesType === 'bar');
         const lineData = params.find(p => p.seriesType === 'line');
+        if (!barData) return '';
         let tooltip = `${barData.name}<br/>`;
-        tooltip += `${currentKpi.name}: ${barData.value.toFixed(2)}%<br/>`;
+        tooltip += `${currentKpi.name}: ${(barData.value as number).toFixed(2)}%<br/>`;
         if (lineData) {
-          tooltip += `Target Average: ${lineData.value.toFixed(2)}%<br/>`;
-          const difference = barData.value - lineData.value;
+          tooltip += `Target Average: ${(lineData.value as number).toFixed(2)}%<br/>`;
+          const difference = (barData.value as number) - (lineData.value as number);
           tooltip += `Difference: ${difference > 0 ? '+' : ''}${difference.toFixed(2)}%<br/>`;
         }
         tooltip += '<br/><small>Click bar to filter to this week</small>';
@@ -121,7 +121,6 @@ const WeeklyKpiChart: React.FC = () => {
           color: theme === 'dark' ? '#3b82f6' : '#2563eb',
         },
       },
-      // Hedef çizgisi - genel ortalama
       {
         name: 'Target Average',
         type: 'line',
@@ -136,7 +135,7 @@ const WeeklyKpiChart: React.FC = () => {
           color: theme === 'dark' ? '#ef4444' : '#dc2626',
         },
         emphasis: {
-          disabled: true, // Disable hover effects on target line
+          disabled: true,
         },
       },
     ],
@@ -165,7 +164,7 @@ const WeeklyKpiChart: React.FC = () => {
           style={{ height: '100%', width: '100%' }} 
           notMerge={true}
           onEvents={{
-            click: handleChartClick
+            'click': handleChartClick
           }}
         />
       </div>
