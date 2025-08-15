@@ -4,6 +4,7 @@ import { useFilteredLogData } from './hooks/useFilteredLogData';
 import { calculateMetrics } from './utils/calculations';
 import { useDebounce } from './hooks/useDebounce';
 
+import Login from './components/Login';
 import CsvUploader from './components/CsvUploader';
 import DataChart from './components/DataChart';
 import DashboardLayout from './components/DashboardLayout';
@@ -18,13 +19,20 @@ import FaultDistributionChart from './components/FaultDistributionChart';
 import WeeklyKpiChart from './components/WeeklyKpiChart';
 
 function App() {
-  const { setMetrics, metrics, lightweightLogEvents, dateRange, theme, isLoading } = useAppStore();
+  const isAuthenticated = useAppStore(state => state.isAuthenticated);
+  const { 
+    setMetrics, 
+    metrics, 
+    lightweightLogEvents, 
+    dateRange, 
+    theme, 
+    isLoading 
+  } = useAppStore();
   const [showControls, setShowControls] = useState(true);
   
   const debouncedDateRange = useDebounce(dateRange, 200);
   const filteredLogsForTable = useFilteredLogData();
 
-  // DÜZELTME: lightweightLogEvents'i tarih aralığına göre burada filtreliyoruz.
   const filteredLogsForMetrics = useMemo(() => {
     if (!debouncedDateRange.start || !debouncedDateRange.end) {
       return [];
@@ -43,14 +51,17 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    // DÜZELTME: Artık filtrelenmiş logları ('filteredLogsForMetrics') kullanıyoruz.
     if (filteredLogsForMetrics.length > 0 && debouncedDateRange.start && debouncedDateRange.end) {
       const newMetrics = calculateMetrics(filteredLogsForMetrics, debouncedDateRange);
       setMetrics(newMetrics);
     } else {
       setMetrics({ operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 });
     }
-  }, [filteredLogsForMetrics, debouncedDateRange, setMetrics]); // Bağımlılık güncellendi
+  }, [filteredLogsForMetrics, debouncedDateRange, setMetrics]);
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
 
   return (
     <DashboardLayout>

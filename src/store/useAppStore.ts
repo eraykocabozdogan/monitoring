@@ -35,14 +35,16 @@ interface AppState {
   chartIntervals: ChartInterval[];
   pendingInterval: { startTimestamp: Date } | null;
   commentLogSelections: TurbineEvent[];
-  targetLogIds: Set<string>; // YENİ: Hedef log ID'lerini tutmak için.
+  targetLogIds: Set<string>; // Gerekli state
+  isAuthenticated: boolean;
+  currentUser: string | null;
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
   processStagedFiles: () => Promise<{ success: boolean; message: string }>;
   setDateRange: (range: { start: Date; end: Date }) => void;
   setMetrics: (newMetrics: Metrics) => void;
   setLegendSelected: (selected: Record<string, boolean>) => void;
-  addComment: (comment: Omit<Comment, 'id' | 'createdAt'>) => void;
+  addComment: (comment: Omit<Comment, 'id' | 'createdAt' | 'username'>) => void;
   setNewCommentSelection: (selection: CommentSelection | null) => void;
   toggleTheme: () => void;
   setIsLoading: (loading: boolean) => void;
@@ -64,7 +66,9 @@ interface AppState {
   clearChartSelections: () => void;
   loadCommentSelectionsToChart: (commentId: number) => void;
   toggleLogCommentSelection: (log: TurbineEvent) => void;
-  toggleTargetLog: (logId: string) => void; // YENİ: Hedef log seçme/kaldırma eylemi.
+  toggleTargetLog: (logId: string) => void; // Gerekli eylem
+  login: (username: string) => void;
+  logout: () => void;
 }
 
 const withMinimumLoading = async (action: () => Promise<unknown>) => {
@@ -104,7 +108,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   chartIntervals: [],
   pendingInterval: null,
   commentLogSelections: [],
-  targetLogIds: new Set<string>(), // YENİ: Başlangıç değeri.
+  targetLogIds: new Set<string>(),
+  isAuthenticated: false,
+  currentUser: null,
 
   addStagedFile: (file) => {
     if (!get().stagedFiles.some(f => f.name === file.name)) {
@@ -162,7 +168,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           chartIntervals: [],
           pendingInterval: null,
           commentLogSelections: [],
-          targetLogIds: new Set<string>(), // GÜNCELLENDİ: Yeni dosyalar işlendiğinde hedef listesini sıfırla.
+          targetLogIds: new Set<string>(), // DÜZELTME: Bu satır eklendi.
         });
         result = { success: true, message: "Files processed successfully." };
       } catch (error) {
@@ -177,13 +183,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   setDateRange: (range) => set({ dateRange: range }),
   setMetrics: (newMetrics) => set({ metrics: newMetrics }),
   setLegendSelected: (selected) => set({ legendSelected: selected }),
-  
   addComment: (comment) => set(state => {
+    if (!state.currentUser) return state;
     const { chartPins, chartIntervals, commentLogSelections } = state;
     const newComment: Comment = {
       ...comment,
       id: Date.now(),
       createdAt: new Date(),
+      username: state.currentUser,
       pins: chartPins.length > 0 ? [...chartPins] : undefined,
       intervals: chartIntervals.length > 0 ? [...chartIntervals] : undefined,
       logs: commentLogSelections.length > 0 ? [...commentLogSelections] : undefined,
@@ -197,7 +204,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       commentLogSelections: [],
     };
   }),
-
   setNewCommentSelection: (selection) => set({ newCommentSelection: selection }),
   toggleTheme: () => set(state => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
   setIsLoading: (loading) => set({ isLoading: loading }),
@@ -210,7 +216,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLastTooltipFormat: (format) => set({ lastTooltipFormat: format }),
   setSelectedFaultCategory: (category) => set({ selectedFaultCategory: category }),
   setFaultChartMode: (mode) => set({ faultChartMode: mode }),
-  
   setChartMode: (mode) => set({ chartMode: mode }),
   addChartPin: (pin) => set(state => ({ chartPins: [...state.chartPins, pin] })),
   removeChartPin: (pinId) => set(state => ({ chartPins: state.chartPins.filter(p => p.id !== pinId) })),
@@ -221,16 +226,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadCommentSelectionsToChart: (commentId: number) => set(state => {
     const comment = state.comments.find(c => c.id === commentId);
     if (!comment) return state;
-    
     const newPins = comment.pins ? [...comment.pins] : [];
     const newIntervals = comment.intervals ? [...comment.intervals] : [];
-    
     return {
       chartPins: [...state.chartPins, ...newPins],
       chartIntervals: [...state.chartIntervals, ...newIntervals],
     };
   }),
-
   toggleLogCommentSelection: (log) => set(state => {
     const isSelected = state.commentLogSelections.some(selectedLog => selectedLog.id === log.id);
     const newSelections = isSelected
@@ -238,8 +240,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       : [...state.commentLogSelections, log];
     return { commentLogSelections: newSelections };
   }),
-
-  toggleTargetLog: (logId: string) => set(state => {
+  toggleTargetLog: (logId) => set(state => {
     const newTargetLogIds = new Set(state.targetLogIds);
     if (newTargetLogIds.has(logId)) {
       newTargetLogIds.delete(logId);
@@ -248,4 +249,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     return { targetLogIds: newTargetLogIds };
   }),
+  login: (username: string) => set({ isAuthenticated: true, currentUser: username }),
+  logout: () => set({ isAuthenticated: false, currentUser: null }),
 }));
