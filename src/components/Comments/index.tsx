@@ -1,8 +1,9 @@
+// Dosya Yolu: src/components/Comments/index.tsx
 import React, { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import styles from './Comments.module.css';
 import { format } from 'date-fns';
-import type { CommentSelection } from '../../types';
+import { formatDuration } from '../../utils/formatters';
 
 const Comments: React.FC = () => {
   const { 
@@ -13,69 +14,26 @@ const Comments: React.FC = () => {
     chartPins, 
     chartIntervals, 
     commentLogSelections,
-    loadCommentSelectionsToChart 
+    loadCommentSelectionsToChart,
+    currentUser, // Aktif kullanıcıyı store'dan alıyoruz
   } = useAppStore();
   const [commentText, setCommentText] = useState('');
 
   const handleAddComment = () => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || !currentUser) return;
 
     addComment({
       text: commentText,
       selection: newCommentSelection,
+      // username alanı store'da otomatik eklenecek
     });
 
     setCommentText('');
     setNewCommentSelection(null); 
   };
   
-  const formatSelection = (selection: CommentSelection | null): string => {
-    if (!selection?.start) {
-      return 'General Comment';
-    }
-    
-    const startDate = new Date(selection.start);
-    const startFormatted = isNaN(startDate.getTime()) ? 'Invalid Date' : format(startDate, 'yyyy-MM-dd HH:mm:ss');
-  
-    if (selection.end && selection.end !== selection.start) {
-      const endDate = new Date(selection.end);
-      const endFormatted = isNaN(endDate.getTime()) ? 'Invalid Date' : format(endDate, 'yyyy-MM-dd HH:mm:ss');
-      return `Range: ${startFormatted} - ${endFormatted}`;
-    }
-    
-    return `Point: ${startFormatted}`;
-  };
-
   const handleLoadSelectionsToChart = (commentId: number) => {
     loadCommentSelectionsToChart(commentId);
-  };
-
-  const formatDuration = (startTime: Date, endTime: Date): string => {
-    const diffMs = endTime.getTime() - startTime.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    // 1 haftadan uzunsa (7 günden fazla)
-    if (diffDays >= 7) {
-      const days = diffDays;
-      const remainingHours = diffHours - (days * 24);
-      if (remainingHours > 0) {
-        return `${days} days ${remainingHours} hours`;
-      } else {
-        return `${days} days`;
-      }
-    }
-    // 1 haftadan kısaysa
-    else {
-      const hours = diffHours;
-      const remainingMinutes = diffMinutes - (hours * 60);
-      if (hours > 0) {
-        return `${hours} hours ${remainingMinutes} minutes`;
-      } else {
-        return `${diffMinutes} minutes`;
-      }
-    }
   };
 
   return (
@@ -176,8 +134,9 @@ const Comments: React.FC = () => {
               )}
               
               <div className={styles.commentMeta}>
-                <span>{formatSelection(comment.selection)}</span>
-                <span>{format(comment.createdAt, 'MMM d, yyyy HH:mm')}</span>
+                {/* DEĞİŞİKLİK: Kullanıcı adını gösteriyoruz */}
+                <span className={styles.commentUser}>{comment.username}</span>
+                <span className={styles.commentDate}>{format(comment.createdAt, 'MMM d, yyyy HH:mm')}</span>
               </div>
             </div>
           ))

@@ -1,3 +1,4 @@
+// Kopyalamaya buradan başlayın
 export interface TurbineEvent {
   id: string; // Her log satırı için benzersiz kimlik
   timestamp: Date | null;
@@ -36,9 +37,10 @@ export interface Comment {
   text: string;
   selection: CommentSelection | null;
   createdAt: Date;
+  username: string; // <-- EKLENDİ
   pins?: ChartPin[];
   intervals?: ChartInterval[];
-  logs?: TurbineEvent[]; // EKLENDİ: Yorumla ilişkilendirilmiş loglar
+  logs?: TurbineEvent[];
 }
 
 export interface ChartPin {

@@ -1,3 +1,5 @@
+// Dosya Yolu: src/components/DataChart/index.tsx
+// Lütfen bu içeriğin tamamını kopyalayıp mevcut dosyanızla değiştirin.
 import React, { useRef, useMemo, useCallback, memo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption, ECElementEvent, SeriesOption } from 'echarts';
@@ -6,6 +8,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { format, getMinutes, getHours, getDate, getMonth, getYear } from 'date-fns';
 import type { PowerCurvePoint, TurbineEvent, ChartPin, ChartInterval } from '../../types/index';
 import styles from './DataChart.module.css';
+import { formatDuration } from '../../utils/formatters'; // <-- DOĞRU IMPORT YOLU
 
 interface EChartsMouseMoveEvent {
   offsetX: number;
@@ -18,32 +21,6 @@ const getTimeBucketKey = (date: Date): string => {
 
 const generateId = (): string => {
   return Math.random().toString(36).substr(2, 9);
-};
-
-const formatDuration = (startTime: Date, endTime: Date): string => {
-  const diffMs = endTime.getTime() - startTime.getTime();
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
-  if (diffDays >= 7) {
-    const days = diffDays;
-    const remainingHours = diffHours - (days * 24);
-    if (remainingHours > 0) {
-      return `${days} days ${remainingHours} hours`;
-    } else {
-      return `${days} days`;
-    }
-  }
-  else {
-    const hours = diffHours;
-    const remainingMinutes = diffMinutes - (hours * 60);
-    if (hours > 0) {
-      return `${hours} hours ${remainingMinutes} minutes`;
-    } else {
-      return `${diffMinutes} minutes`;
-    }
-  }
 };
 
 const DataChart: React.FC = () => {
@@ -224,7 +201,6 @@ const DataChart: React.FC = () => {
     }
 
     let hoverTime: Date;
-    // DÜZELTME: 'axisValue' propertysinin varlığını kontrol ediyoruz.
     if ('axisValue' in firstParam && (typeof firstParam.axisValue === 'number' || typeof firstParam.axisValue === 'string')) {
         hoverTime = new Date(firstParam.axisValue);
     } else if (firstParam.value && Array.isArray(firstParam.value) && firstParam.value[0]) {

@@ -1,3 +1,4 @@
+/* Dosya Yolu: src/components/Comments/Comments.module.css */
 .container {
   background-color: var(--color-background-secondary);
   border-radius: 8px;
@@ -6,12 +7,12 @@
   color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
-  height: 100%; /* Grid alanına tam sığması için */
-  min-height: 500px; /* Minimum height to match logs area */
-  max-height: 100%; /* Don't exceed the grid area height */
-  overflow: hidden; /* Prevent overall container scroll */
-  flex-shrink: 0; /* Prevent shrinking */
-  align-self: stretch; /* Stretch to match grid area */
+  height: 100%;
+  min-height: 500px;
+  max-height: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+  align-self: stretch;
 }
 
 .title {
@@ -20,12 +21,12 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--color-text-primary);
-  flex-shrink: 0; /* Don't shrink the title */
+  flex-shrink: 0;
 }
 
 .addCommentSection {
   margin-bottom: 24px;
-  flex-shrink: 0; /* Don't shrink this section */
+  flex-shrink: 0;
 }
 
 .selectionInfo {
@@ -82,15 +83,14 @@
 }
 
 .commentList {
-  flex: 1 1 0; /* Take remaining space, allow shrinking to 0 */
+  flex: 1 1 0;
   overflow-y: auto;
   border-top: 1px solid var(--color-border);
   padding-top: 16px;
-  padding-right: 8px; /* Scrollbar için alan */
-  min-height: 0; /* Allow shrinking to 0 */
+  padding-right: 8px;
+  min-height: 0;
 }
 
-/* Scrollbar stilleri */
 .commentList::-webkit-scrollbar {
   width: 6px;
 }
@@ -161,9 +161,24 @@
 .commentMeta {
   display: flex;
   justify-content: space-between;
+  align-items: center; /* Dikeyde hizalamak için eklendi */
   font-size: 12px;
   color: var(--color-text-secondary);
+  margin-top: 8px; /* Üstten boşluk eklendi */
+  padding-top: 8px; /* Üstten padding eklendi */
+  border-top: 1px solid var(--color-border); /* Ayırıcı çizgi eklendi */
 }
+
+/* YENİ EKLENEN STİLLER */
+.commentUser {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.commentDate {
+  font-style: italic;
+}
+/* YENİ EKLENEN STİLLER BİTİŞ */
 
 .selectionsPreview {
   background-color: var(--color-background-main);

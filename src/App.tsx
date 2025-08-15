@@ -1,3 +1,4 @@
+// Dosya Yolu: src/App.tsx
 import { useEffect, useState, useMemo } from 'react';
 import { useAppStore } from './store/useAppStore';
 import { useFilteredLogData } from './hooks/useFilteredLogData';

@@ -1,3 +1,4 @@
+/* Dosya Yolu: src/components/DashboardLayout/DashboardLayout.module.css */
 .container {
   display: flex;
   flex-direction: column;
@@ -25,7 +26,6 @@
 }
 
 .headerLogo {
-  /* DEĞİŞTİ: Logonun yüksekliğini 32px'den 64px'e çıkardık. */
   height: 64px;
   width: auto;
 }
@@ -33,7 +33,35 @@
 .headerButtons {
   display: flex;
   align-items: center;
+  gap: 16px;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
   gap: 12px;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.logoutButton {
+  background-color: var(--color-background-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.logoutButton:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .title {
@@ -42,8 +70,6 @@
   font-size: 24px;
   font-weight: 600;
 }
-
-/* ... dosyanın geri kalanı aynı ... */
 
 .chartsRow {
   display: grid;

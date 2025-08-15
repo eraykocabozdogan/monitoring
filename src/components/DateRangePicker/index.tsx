@@ -1,3 +1,4 @@
+// Kopyalamaya buradan başlayın
 import React, { memo } from 'react';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -23,51 +24,57 @@ const DateRangePicker: React.FC = () => {
     }
   };
 
+  // Tüm stil mantığını burada birleştiriyoruz
   const muiTheme = createTheme({
     palette: {
       mode: theme,
-      ...(theme === 'dark' && {
-        primary: {
-          main: '#FFC107',
+      ...(theme === 'dark' ? {
+        primary: { main: '#3b82f6' },
+        background: { paper: 'var(--color-background-secondary)' },
+        text: { 
+          primary: 'var(--color-text-primary)',
+          secondary: 'var(--color-text-secondary)' 
         },
-        background: {
-          paper: '#1E1E1E',
-        },
-        text: {
-          primary: '#E0E0E0',
-          secondary: '#B3B3B3',
-        },
+      } : {
+        primary: { main: '#3b82f6' },
+        background: { paper: 'var(--color-background-secondary)' },
       }),
     },
     components: {
-        MuiOutlinedInput: {
-            styleOverrides: {
-                root: {
-                    ...(theme === 'dark' && {
-                        '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: '#333333',
-                        },
-                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                            borderColor: '#444444',
-                        },
-                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                            borderColor: '#FFC107',
-                        },
-                        backgroundColor: '#2A2A2A',
-                    })
-                }
-            }
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            backgroundColor: 'var(--color-background-main)',
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'var(--color-border)',
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'var(--color-brand)',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'var(--color-brand)',
+            },
+          },
         },
-        MuiSvgIcon: {
-            styleOverrides: {
-                root: {
-                    ...(theme === 'dark' && {
-                        color: '#B3B3B3',
-                    })
-                }
-            }
-        }
-    }
+      },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            color: 'var(--color-text-secondary)',
+            '&.Mui-focused': {
+              color: 'var(--color-brand)',
+            },
+          },
+        },
+      },
+      MuiSvgIcon: {
+        styleOverrides: {
+          root: {
+            color: 'var(--color-text-secondary)',
+          },
+        },
+      },
+    },
   });
 
   return (
@@ -81,10 +88,9 @@ const DateRangePicker: React.FC = () => {
           borderRadius: '8px',
           boxShadow: 'var(--shadow-main)'
         }}>
-        <Typography variant="subtitle1" sx={{ color: 'text.primary', fontWeight: 'bold', textAlign: 'center', mb: 1 }}>
+        <Typography variant="h6" component="h2" sx={{ color: 'text.primary', fontWeight: '600', textAlign: 'center', mb: 1, fontSize: '16px' }}>
           Select Date Range
         </Typography>
-        {/* Use local timezone instead of UTC */}
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={undefined}>
           <DatePicker
             label="Start Date"

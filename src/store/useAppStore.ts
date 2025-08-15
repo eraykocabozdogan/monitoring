@@ -1,3 +1,4 @@
+// Dosya Yolu: src/store/useAppStore.ts
 import { create } from 'zustand';
 import type { TurbineEvent, PowerCurvePoint, Metrics, Comment, CommentSelection, ChartPin, ChartInterval } from '../types/index';
 import { parseCsvFiles } from '../utils/csvParser';
@@ -7,6 +8,34 @@ type Theme = 'light' | 'dark';
 
 export type LogFilters = Partial<Record<keyof Omit<TurbineEvent, 'id' | 'timestamp' | 'description' | 'power' | 'windSpeed'>, string[]>>;
 export type LightweightLogEvent = Pick<TurbineEvent, 'timestamp' | 'status' | 'eventType'>;
+
+// Durumun başlangıç değerlerini tanımlayalım. Bu, state'i sıfırlamak için de kullanılacak.
+const initialState = {
+  stagedFiles: [],
+  logEvents: [],
+  powerCurveData: [],
+  lightweightLogEvents: [],
+  dateRange: { start: null, end: null },
+  metrics: { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 },
+  legendSelected: { 'Power (kW)': true, 'Expected Power (kW)': true, 'Wind Speed (m/s)': true, 'Fault': true, 'Safety Critical Fault': true },
+  comments: [],
+  newCommentSelection: null,
+  isLoading: false,
+  isFilterModalOpen: false,
+  logFilters: {},
+  tempLogFilters: {},
+  selectedChartTimestamp: null,
+  lastTooltipFormat: null,
+  selectedFaultCategory: null,
+  faultChartMode: 'count' as 'count' | 'downtime',
+  chartMode: 'normal' as 'normal' | 'interval' | 'pin',
+  chartPins: [],
+  chartIntervals: [],
+  pendingInterval: null,
+  commentLogSelections: [],
+  targetLogIds: new Set<string>(),
+};
+
 
 interface AppState {
   stagedFiles: File[];
@@ -35,7 +64,7 @@ interface AppState {
   chartIntervals: ChartInterval[];
   pendingInterval: { startTimestamp: Date } | null;
   commentLogSelections: TurbineEvent[];
-  targetLogIds: Set<string>; // Gerekli state
+  targetLogIds: Set<string>;
   isAuthenticated: boolean;
   currentUser: string | null;
   addStagedFile: (file: File) => void;
@@ -66,7 +95,7 @@ interface AppState {
   clearChartSelections: () => void;
   loadCommentSelectionsToChart: (commentId: number) => void;
   toggleLogCommentSelection: (log: TurbineEvent) => void;
-  toggleTargetLog: (logId: string) => void; // Gerekli eylem
+  toggleTargetLog: (logId: string) => void;
   login: (username: string) => void;
   logout: () => void;
 }
@@ -84,171 +113,166 @@ const withMinimumLoading = async (action: () => Promise<unknown>) => {
   }
 };
 
-export const useAppStore = create<AppState>((set, get) => ({
-  stagedFiles: [],
-  logEvents: [],
-  powerCurveData: [],
-  lightweightLogEvents: [],
-  dateRange: { start: null, end: null },
-  metrics: { operationalAvailability: 0, technicalAvailability: 0, mtbf: 0, mttr: 0, reliabilityR: 0 },
-  legendSelected: { 'Power (kW)': true, 'Expected Power (kW)': true, 'Wind Speed (m/s)': true, 'Fault': true, 'Safety Critical Fault': true },
-  comments: [],
-  newCommentSelection: null,
-  theme: 'light',
-  isLoading: false,
-  isFilterModalOpen: false,
-  logFilters: {},
-  tempLogFilters: {},
-  selectedChartTimestamp: null,
-  lastTooltipFormat: null,
-  selectedFaultCategory: null,
-  faultChartMode: 'count',
-  chartMode: 'normal',
-  chartPins: [],
-  chartIntervals: [],
-  pendingInterval: null,
-  commentLogSelections: [],
-  targetLogIds: new Set<string>(),
-  isAuthenticated: false,
-  currentUser: null,
+export const useAppStore = create<AppState>((set, get) => {
+  // LocalStorage'dan tema ve kullanıcı bilgilerini al
+  const storedTheme = localStorage.getItem('theme') as Theme | null;
+  const storedUser = localStorage.getItem('currentUser');
 
-  addStagedFile: (file) => {
-    if (!get().stagedFiles.some(f => f.name === file.name)) {
-      set(state => ({ stagedFiles: [...state.stagedFiles, file] }));
-    }
-  },
+  return {
+    ...initialState,
+    theme: storedTheme || 'light',
+    isAuthenticated: !!storedUser,
+    currentUser: storedUser || null,
 
-  removeStagedFile: (fileName) => {
-    set(state => ({ stagedFiles: state.stagedFiles.filter(f => f.name !== fileName) }));
-  },
-
-  processStagedFiles: async () => {
-    const { stagedFiles } = get();
-    if (stagedFiles.length === 0) {
-      return { success: false, message: "No files selected for processing." };
-    }
-    
-    set({ isLoading: true });
-    
-    let result: { success: boolean; message: string } = { success: false, message: "An unknown error occurred." };
-
-    await withMinimumLoading(async () => {
-      try {
-        const { logs: parsedLogs, power: parsedPower, lightweightLogs: parsedLightweightLogs } = await parseCsvFiles(stagedFiles);
-        const logs = parsedLogs;
-        let power = parsedPower;
-        const lightweightLogs = parsedLightweightLogs;
-
-        if (logs.length > 0 && power.length === 0) {
-          power = aggregateLogDataToPowerCurve(logs);
-        }
-
-        if (logs.length === 0 && power.length === 0) {
-          result = { success: false, message: "Could not recognize file formats or files are empty." };
-          return;
-        }
-        
-        const allTimestamps = [...power.map(p => p.timestamp), ...logs.map(l => l.timestamp)].filter(Boolean) as Date[];
-        let earliest = null, latest = null;
-        if (allTimestamps.length > 0) {
-            earliest = new Date(Math.min(...allTimestamps.map(d => d.getTime())));
-            latest = new Date(Math.max(...allTimestamps.map(d => d.getTime())));
-        }
-        
-        set({
-          logEvents: logs,
-          powerCurveData: power,
-          lightweightLogEvents: lightweightLogs,
-          stagedFiles: [],
-          dateRange: { start: earliest, end: latest },
-          comments: [],
-          logFilters: {},
-          tempLogFilters: {},
-          chartPins: [],
-          chartIntervals: [],
-          pendingInterval: null,
-          commentLogSelections: [],
-          targetLogIds: new Set<string>(), // DÜZELTME: Bu satır eklendi.
-        });
-        result = { success: true, message: "Files processed successfully." };
-      } catch (error) {
-        result = { success: false, message: error instanceof Error ? error.message : "An unknown error occurred." };
+    addStagedFile: (file) => {
+      if (!get().stagedFiles.some(f => f.name === file.name)) {
+        set(state => ({ stagedFiles: [...state.stagedFiles, file] }));
       }
-    });
+    },
 
-    set({ isLoading: false });
-    return result;
-  },
+    removeStagedFile: (fileName) => {
+      set(state => ({ stagedFiles: state.stagedFiles.filter(f => f.name !== fileName) }));
+    },
 
-  setDateRange: (range) => set({ dateRange: range }),
-  setMetrics: (newMetrics) => set({ metrics: newMetrics }),
-  setLegendSelected: (selected) => set({ legendSelected: selected }),
-  addComment: (comment) => set(state => {
-    if (!state.currentUser) return state;
-    const { chartPins, chartIntervals, commentLogSelections } = state;
-    const newComment: Comment = {
-      ...comment,
-      id: Date.now(),
-      createdAt: new Date(),
-      username: state.currentUser,
-      pins: chartPins.length > 0 ? [...chartPins] : undefined,
-      intervals: chartIntervals.length > 0 ? [...chartIntervals] : undefined,
-      logs: commentLogSelections.length > 0 ? [...commentLogSelections] : undefined,
-    };
-    return { 
-      comments: [...state.comments, newComment],
-      chartPins: [],
-      chartIntervals: [],
-      pendingInterval: null,
-      chartMode: 'normal',
-      commentLogSelections: [],
-    };
-  }),
-  setNewCommentSelection: (selection) => set({ newCommentSelection: selection }),
-  toggleTheme: () => set(state => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
-  setIsLoading: (loading) => set({ isLoading: loading }),
-  openFilterModal: () => set(state => ({ isFilterModalOpen: true, tempLogFilters: state.logFilters })),
-  closeFilterModal: () => set({ isFilterModalOpen: false }),
-  setTempLogFilters: (filters) => set({ tempLogFilters: filters }),
-  applyLogFilters: () => set(state => ({ logFilters: state.tempLogFilters })),
-  resetLogFilters: () => set({ logFilters: {}, tempLogFilters: {} }),
-  setSelectedChartTimestamp: (timestamp) => set({ selectedChartTimestamp: timestamp }),
-  setLastTooltipFormat: (format) => set({ lastTooltipFormat: format }),
-  setSelectedFaultCategory: (category) => set({ selectedFaultCategory: category }),
-  setFaultChartMode: (mode) => set({ faultChartMode: mode }),
-  setChartMode: (mode) => set({ chartMode: mode }),
-  addChartPin: (pin) => set(state => ({ chartPins: [...state.chartPins, pin] })),
-  removeChartPin: (pinId) => set(state => ({ chartPins: state.chartPins.filter(p => p.id !== pinId) })),
-  addChartInterval: (interval) => set(state => ({ chartIntervals: [...state.chartIntervals, interval] })),
-  removeChartInterval: (intervalId) => set(state => ({ chartIntervals: state.chartIntervals.filter(i => i.id !== intervalId) })),
-  setPendingInterval: (interval) => set({ pendingInterval: interval }),
-  clearChartSelections: () => set({ chartPins: [], chartIntervals: [], pendingInterval: null, chartMode: 'normal' }),
-  loadCommentSelectionsToChart: (commentId: number) => set(state => {
-    const comment = state.comments.find(c => c.id === commentId);
-    if (!comment) return state;
-    const newPins = comment.pins ? [...comment.pins] : [];
-    const newIntervals = comment.intervals ? [...comment.intervals] : [];
-    return {
-      chartPins: [...state.chartPins, ...newPins],
-      chartIntervals: [...state.chartIntervals, ...newIntervals],
-    };
-  }),
-  toggleLogCommentSelection: (log) => set(state => {
-    const isSelected = state.commentLogSelections.some(selectedLog => selectedLog.id === log.id);
-    const newSelections = isSelected
-      ? state.commentLogSelections.filter(selectedLog => selectedLog.id !== log.id)
-      : [...state.commentLogSelections, log];
-    return { commentLogSelections: newSelections };
-  }),
-  toggleTargetLog: (logId) => set(state => {
-    const newTargetLogIds = new Set(state.targetLogIds);
-    if (newTargetLogIds.has(logId)) {
-      newTargetLogIds.delete(logId);
-    } else {
-      newTargetLogIds.add(logId);
-    }
-    return { targetLogIds: newTargetLogIds };
-  }),
-  login: (username: string) => set({ isAuthenticated: true, currentUser: username }),
-  logout: () => set({ isAuthenticated: false, currentUser: null }),
-}));
+    processStagedFiles: async () => {
+      const { stagedFiles } = get();
+      if (stagedFiles.length === 0) {
+        return { success: false, message: "No files selected for processing." };
+      }
+      
+      set({ isLoading: true });
+      
+      let result: { success: boolean; message: string } = { success: false, message: "An unknown error occurred." };
+
+      await withMinimumLoading(async () => {
+        try {
+          const { logs: parsedLogs, power: parsedPower, lightweightLogs: parsedLightweightLogs } = await parseCsvFiles(stagedFiles);
+          const logs = parsedLogs;
+          let power = parsedPower;
+          const lightweightLogs = parsedLightweightLogs;
+
+          if (logs.length > 0 && power.length === 0) {
+            power = aggregateLogDataToPowerCurve(logs);
+          }
+
+          if (logs.length === 0 && power.length === 0) {
+            result = { success: false, message: "Could not recognize file formats or files are empty." };
+            return;
+          }
+          
+          const allTimestamps = [...power.map(p => p.timestamp), ...logs.map(l => l.timestamp)].filter(Boolean) as Date[];
+          let earliest = null, latest = null;
+          if (allTimestamps.length > 0) {
+              earliest = new Date(Math.min(...allTimestamps.map(d => d.getTime())));
+              latest = new Date(Math.max(...allTimestamps.map(d => d.getTime())));
+          }
+          
+          set({
+            logEvents: logs,
+            powerCurveData: power,
+            lightweightLogEvents: lightweightLogs,
+            stagedFiles: [],
+            dateRange: { start: earliest, end: latest },
+            comments: [],
+            logFilters: {},
+            tempLogFilters: {},
+            chartPins: [],
+            chartIntervals: [],
+            pendingInterval: null,
+            commentLogSelections: [],
+            targetLogIds: new Set<string>(),
+          });
+          result = { success: true, message: "Files processed successfully." };
+        } catch (error) {
+          result = { success: false, message: error instanceof Error ? error.message : "An unknown error occurred." };
+        }
+      });
+
+      set({ isLoading: false });
+      return result;
+    },
+
+    setDateRange: (range) => set({ dateRange: range }),
+    setMetrics: (newMetrics) => set({ metrics: newMetrics }),
+    setLegendSelected: (selected) => set({ legendSelected: selected }),
+    addComment: (comment) => set(state => {
+      if (!state.currentUser) return state;
+      const { chartPins, chartIntervals, commentLogSelections } = state;
+      const newComment: Comment = {
+        ...comment,
+        id: Date.now(),
+        createdAt: new Date(),
+        username: state.currentUser,
+        pins: chartPins.length > 0 ? [...chartPins] : undefined,
+        intervals: chartIntervals.length > 0 ? [...chartIntervals] : undefined,
+        logs: commentLogSelections.length > 0 ? [...commentLogSelections] : undefined,
+      };
+      return { 
+        comments: [...state.comments, newComment],
+        chartPins: [],
+        chartIntervals: [],
+        pendingInterval: null,
+        chartMode: 'normal',
+        commentLogSelections: [],
+      };
+    }),
+    setNewCommentSelection: (selection) => set({ newCommentSelection: selection }),
+    toggleTheme: () => set(state => {
+      const newTheme = state.theme === 'light' ? 'dark' : 'light';
+      localStorage.setItem('theme', newTheme);
+      return { theme: newTheme };
+    }),
+    setIsLoading: (loading) => set({ isLoading: loading }),
+    openFilterModal: () => set(state => ({ isFilterModalOpen: true, tempLogFilters: state.logFilters })),
+    closeFilterModal: () => set({ isFilterModalOpen: false }),
+    setTempLogFilters: (filters) => set({ tempLogFilters: filters }),
+    applyLogFilters: () => set(state => ({ logFilters: state.tempLogFilters })),
+    resetLogFilters: () => set({ logFilters: {}, tempLogFilters: {} }),
+    setSelectedChartTimestamp: (timestamp) => set({ selectedChartTimestamp: timestamp }),
+    setLastTooltipFormat: (format) => set({ lastTooltipFormat: format }),
+    setSelectedFaultCategory: (category) => set({ selectedFaultCategory: category }),
+    setFaultChartMode: (mode) => set({ faultChartMode: mode }),
+    setChartMode: (mode) => set({ chartMode: mode }),
+    addChartPin: (pin) => set(state => ({ chartPins: [...state.chartPins, pin] })),
+    removeChartPin: (pinId) => set(state => ({ chartPins: state.chartPins.filter(p => p.id !== pinId) })),
+    addChartInterval: (interval) => set(state => ({ chartIntervals: [...state.chartIntervals, interval] })),
+    removeChartInterval: (intervalId) => set(state => ({ chartIntervals: state.chartIntervals.filter(i => i.id !== intervalId) })),
+    setPendingInterval: (interval) => set({ pendingInterval: interval }),
+    clearChartSelections: () => set({ chartPins: [], chartIntervals: [], pendingInterval: null, chartMode: 'normal' }),
+    loadCommentSelectionsToChart: (commentId: number) => set(state => {
+      const comment = state.comments.find(c => c.id === commentId);
+      if (!comment) return state;
+      const newPins = comment.pins ? [...comment.pins] : [];
+      const newIntervals = comment.intervals ? [...comment.intervals] : [];
+      return {
+        chartPins: [...state.chartPins, ...newPins],
+        chartIntervals: [...state.chartIntervals, ...newIntervals],
+      };
+    }),
+    toggleLogCommentSelection: (log) => set(state => {
+      const isSelected = state.commentLogSelections.some(selectedLog => selectedLog.id === log.id);
+      const newSelections = isSelected
+        ? state.commentLogSelections.filter(selectedLog => selectedLog.id !== log.id)
+        : [...state.commentLogSelections, log];
+      return { commentLogSelections: newSelections };
+    }),
+    toggleTargetLog: (logId) => set(state => {
+      const newTargetLogIds = new Set(state.targetLogIds);
+      if (newTargetLogIds.has(logId)) {
+        newTargetLogIds.delete(logId);
+      } else {
+        newTargetLogIds.add(logId);
+      }
+      return { targetLogIds: newTargetLogIds };
+    }),
+    login: (username: string) => {
+      localStorage.setItem('currentUser', username);
+      set({ isAuthenticated: true, currentUser: username });
+    },
+    logout: () => {
+      localStorage.removeItem('currentUser');
+      // Sadece auth state'ini değil, tüm veriyi sıfırla
+      set({ ...initialState, isAuthenticated: false, currentUser: null });
+    },
+  };
+});
