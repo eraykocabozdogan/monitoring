@@ -1,13 +1,12 @@
 import React, { useRef, useMemo, useCallback, memo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption, ECElementEvent } from 'echarts';
-import type { TooltipComponentFormatterCallbackParams } from 'echarts/types/dist/shared';
+import type { TooltipComponentFormatterCallback } from 'echarts';
 import { useAppStore } from '../../store/useAppStore';
 import { format, getMinutes, getHours, getDate, getMonth, getYear } from 'date-fns';
 import type { PowerCurvePoint, TurbineEvent, ChartPin, ChartInterval } from '../../types/index';
 import styles from './DataChart.module.css';
 
-// ECharts'ın dispatchAction için kullandığı mouse olay tipini tanımlayalım
 interface EChartsMouseMoveEvent {
   offsetX: number;
   offsetY: number;
@@ -177,21 +176,21 @@ const DataChart: React.FC = () => {
         }
     }
 
-    const baseSeries = [
+    const baseSeries: EChartsOption['series'] = [
       { name: 'Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.power }, z: 3, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.power]), xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' },
       { name: 'Wind Speed (m/s)', type: 'line', yAxisIndex: 1, xAxisIndex: 0, showSymbol: false, lineStyle: { width: 1.5, color: colors.windLine, opacity: 0.75 }, areaStyle: { color: colors.windArea, opacity: 0.5 }, itemStyle: { opacity: 1 }, z: 1, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.windSpeed]), triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' },
       { name: 'Fault', type: 'scatter', symbol: 'diamond', symbolSize: 9, itemStyle: { color: colors.fault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.faultEvents, zlevel: 10, xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, emphasis: { disabled: true }, cursor: 'default' },
       { name: 'Safety Critical Fault', type: 'scatter', symbol: 'triangle', symbolSize: 9, itemStyle: { color: colors.criticalFault, opacity: 1 }, triggerEvent: true, data: processedSeriesData.safetyCriticalFaultEvents, zlevel: 11, xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, emphasis: { disabled: true }, cursor: 'default' }
     ];
 
-    if (hasRefPower) {
+    if (hasRefPower && Array.isArray(baseSeries)) {
       baseSeries.splice(1, 0, { name: 'Expected Power (kW)', type: 'bar', barMaxWidth: 30, barGap: '-100%', itemStyle: { opacity: 0.9, color: colors.refPower }, z: 2, triggerEvent: true, data: displayData.map(event => [event.timestamp!.getTime(), event.refPower]), xAxisIndex: 0, yAxisIndex: 0, triggerLineEvent: false, hoverAnimation: false, silent: false, cursor: 'default' });
     }
 
     return baseSeries;
   }, [powerCurveData, processedSeriesData, theme, hasRefPower, dateRange]);
 
-  const formatTooltip = useCallback((params: TooltipComponentFormatterCallbackParams) => {
+  const formatTooltip: TooltipComponentFormatterCallback = useCallback((params) => {
     const tooltipTheme = {
         backgroundColor: theme === 'dark' ? 'rgba(20, 20, 30, 0.9)' : 'rgba(255, 255, 255, 0.95)',
         textColor: theme === 'dark' ? '#f1f5f9' : '#1e293b',
@@ -462,7 +461,7 @@ const DataChart: React.FC = () => {
       legendData.splice(1, 0, 'Expected Power (kW)');
     }
 
-    const sliderSeries = [];
+    const sliderSeries: EChartsOption['series'] = [];
     if (chartPins.length > 0 || pendingInterval) {
       const pinData = chartPins.map(pin => ({ value: [pin.timestamp.getTime(), 0.5], symbol: 'circle', symbolSize: 12, itemStyle: { color: '#3b82f6', borderColor: '#ffffff', borderWidth: 2 } }));
       if (pendingInterval) {
@@ -501,7 +500,9 @@ const DataChart: React.FC = () => {
       const colors = ['#10b981', '#059669', '#047857', '#065f46', '#064e3b'];
       let levelIndex = 0;
       levelGroups.forEach((data) => {
-        sliderSeries.push({ name: `Chart Intervals Level ${levelIndex}`, type: 'line', data: data, xAxisIndex: 1, yAxisIndex: 2, silent: true, lineStyle: { color: colors[levelIndex % colors.length], width: 6, opacity: 0.7 }, showSymbol: false, zlevel: 99, tooltip: { show: false } });
+        if (Array.isArray(sliderSeries)) {
+          sliderSeries.push({ name: `Chart Intervals Level ${levelIndex}`, type: 'line', data: data, xAxisIndex: 1, yAxisIndex: 2, silent: true, lineStyle: { color: colors[levelIndex % colors.length], width: 6, opacity: 0.7 }, showSymbol: false, zlevel: 99, tooltip: { show: false } });
+        }
         levelIndex++;
       });
     }
@@ -513,7 +514,7 @@ const DataChart: React.FC = () => {
       xAxis: [{ type: 'time', gridIndex: 0, axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f293b' }, triggerEvent: true }, { type: 'time', gridIndex: 1, position: 'bottom', axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false }, splitLine: { show: false }, min: dateRange?.start?.getTime(), max: dateRange?.end?.getTime() }],
       yAxis: [{ type: 'value', gridIndex: 0, name: 'Power (kW)', min: 0, nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, splitLine: { lineStyle: { color: [theme === 'dark' ? '#4b5563' : '#e5e7eb'] } }, triggerEvent: true }, { type: 'value', gridIndex: 0, name: 'Wind Speed (m/s)', nameTextStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, axisLine: { lineStyle: { color: theme === 'dark' ? '#4b5563' : '#e5e7eb' } }, axisLabel: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, splitLine: { show: false }, triggerEvent: true }, { type: 'value', gridIndex: 1, min: 0, max: 1, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false }, splitLine: { show: false } }],
       dataZoom: [{ type: 'inside', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime() }, { type: 'slider', startValue: dateRange?.start?.getTime(), endValue: dateRange?.end?.getTime(), textStyle: { color: theme === 'dark' ? '#f9fafb' : '#1f2937' }, bottom: '2%', height: '5%' }],
-      series: [...series, ...sliderSeries],
+      series: [...(series || []), ...(sliderSeries || [])],
       animation: false,
       hoverLayerThreshold: 2,
       useUTC: false

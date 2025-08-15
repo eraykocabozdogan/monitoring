@@ -9,30 +9,61 @@ interface CriticalLogsProps {
   logs: TurbineEvent[];
 }
 
-const LogRow = memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: { logs: TurbineEvent[], commentLogSelections: TurbineEvent[], toggleLogCommentSelection: (log: TurbineEvent) => void } }) => {
-  const { logs, commentLogSelections, toggleLogCommentSelection } = data;
+interface LogRowData {
+  logs: TurbineEvent[];
+  commentLogSelections: TurbineEvent[];
+  toggleLogCommentSelection: (log: TurbineEvent) => void;
+  targetLogIds: Set<string>;
+  toggleTargetLog: (logId: string) => void;
+}
+
+const LogRow = memo(({ index, style, data }: { index: number, style: React.CSSProperties, data: LogRowData }) => {
+  const { logs, commentLogSelections, toggleLogCommentSelection, targetLogIds, toggleTargetLog } = data;
   const log = logs[index];
   
-  const isSelected = commentLogSelections.some(selectedLog => selectedLog.id === log.id);
+  const isCommentSelected = commentLogSelections.some(selectedLog => selectedLog.id === log.id);
+  const isTargetSelected = targetLogIds.has(log.id);
   
   const dateStr = log.timestamp ? log.timestamp.toISOString().slice(0, 10) : '--';
   const timeStr = log.timestamp ? log.timestamp.toISOString().slice(11, 19) : '--';
+
+  // DÜZELTME: Karşılaştırmayı daha güvenilir hale getiriyoruz.
+  // Metni küçük harfe çevirip başındaki/sonundaki boşlukları siliyoruz.
+  const displayEventType = log.eventType?.trim().toLowerCase() === 'safety critical fault' 
+    ? 'SFT' 
+    : log.eventType;
 
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleLogCommentSelection(log);
   };
 
+  const handleTargetClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleTargetLog(log.id);
+  };
+
   return (
     <div className={styles.tableRow} style={style}>
-      <div className={`${styles.tableCell} ${styles.commentCell}`}>
+      <div className={`${styles.tableCell} ${styles.selectCell}`}>
         <button 
           onClick={handleCommentClick} 
-          className={`${styles.commentButton} ${isSelected ? styles.selected : ''}`}
-          title={isSelected ? "Remove from comment" : "Add to comment"}
+          className={`${styles.commentButton} ${isCommentSelected ? styles.selected : ''}`}
+          title={isCommentSelected ? "Remove from comment" : "Add to comment"}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
+        <button
+          onClick={handleTargetClick}
+          className={`${styles.targetButton} ${isTargetSelected ? styles.selected : ''}`}
+          title={isTargetSelected ? "Remove from targets" : "Mark as target"}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="6"></circle>
+            <circle cx="12" cy="12" r="2"></circle>
           </svg>
         </button>
       </div>
@@ -40,7 +71,7 @@ const LogRow = memo(({ index, style, data }: { index: number, style: React.CSSPr
       <div className={styles.tableCell}>{timeStr}</div>
       <div className={styles.tableCell}>{log.status || '--'}</div>
       <div className={styles.tableCell}>{log.name || '--'}</div>
-      <div className={styles.tableCell}>{log.eventType || '--'}</div>
+      <div className={styles.tableCell}>{displayEventType || '--'}</div>
       <div className={styles.tableCell} title={log.description}>{log.description}</div>
       <div className={styles.tableCell}>{log.category || '--'}</div>
       <div className={styles.tableCell}>{log.ccuEvent || '--'}</div>
@@ -57,9 +88,11 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
     selectedFaultCategory,
     setSelectedFaultCategory,
     commentLogSelections,
-    toggleLogCommentSelection
+    toggleLogCommentSelection,
+    targetLogIds,
+    toggleTargetLog
   } = useAppStore();
-  const listRef = useRef<List>(null);
+  const listRef = useRef<List<LogRowData>>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,47 +106,24 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
       if (isDetailedZoom) {
         let prevLogTimeDiff = Infinity;
         let prevLogIndex = -1;
-        let closestTimeDiff = Infinity;
-        let closestIndex = -1;
         
         logs.forEach((log, index) => {
           if (log.timestamp) {
-            const timeDiff = log.timestamp.getTime() - clickedTime;
-            const absTimeDiff = Math.abs(timeDiff);
-            
-            if (absTimeDiff < closestTimeDiff) {
-              closestTimeDiff = absTimeDiff;
-              closestIndex = index;
-            }
-            
-            if (timeDiff <= 0 && Math.abs(timeDiff) < prevLogTimeDiff) {
-              prevLogTimeDiff = Math.abs(timeDiff);
+            const timeDiff = clickedTime - log.timestamp.getTime();
+            if (timeDiff >= 0 && timeDiff < prevLogTimeDiff) {
+              prevLogTimeDiff = timeDiff;
               prevLogIndex = index;
             }
           }
         });
         
-        targetIndex = prevLogIndex !== -1 ? prevLogIndex : closestIndex;
+        targetIndex = prevLogIndex !== -1 ? prevLogIndex : 0;
         
       } else {
         const clickedDate = new Date(selectedChartTimestamp);
         clickedDate.setHours(0, 0, 0, 0);
-        const nextDay = new Date(clickedDate);
-        nextDay.setDate(nextDay.getDate() + 1);
         
-        const dayStart = clickedDate.getTime();
-        const dayEnd = nextDay.getTime();
-        
-        for (let i = 0; i < logs.length; i++) {
-          const log = logs[i];
-          if (log.timestamp) {
-            const logTime = log.timestamp.getTime();
-            if (logTime >= dayStart && logTime < dayEnd) {
-              targetIndex = i;
-              break;
-            }
-          }
-        }
+        targetIndex = logs.findIndex(log => log.timestamp && log.timestamp.getTime() >= clickedDate.getTime());
       }
       
       if (targetIndex !== -1) {
@@ -134,8 +144,10 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
   const itemData = useMemo(() => ({
     logs,
     commentLogSelections,
-    toggleLogCommentSelection
-  }), [logs, commentLogSelections, toggleLogCommentSelection]);
+    toggleLogCommentSelection,
+    targetLogIds,
+    toggleTargetLog
+  }), [logs, commentLogSelections, toggleLogCommentSelection, targetLogIds, toggleTargetLog]);
 
   return (
     <>
@@ -169,7 +181,7 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
         
         <div className={styles.tableContainer}>
           <div className={styles.tableHeader}>
-            <div className={`${styles.tableCell} ${styles.commentCell}`}>Add</div>
+            <div className={`${styles.tableCell} ${styles.selectCell}`}>Select</div>
             <div className={styles.tableCell}>Date</div>
             <div className={styles.tableCell}>Time</div>
             <div className={styles.tableCell}>Status</div>
@@ -177,7 +189,7 @@ const CriticalLogs: React.FC<CriticalLogsProps> = ({ logs }) => {
             <div className={styles.tableCell}>Event Type</div>
             <div className={styles.tableCell}>Description</div>
             <div className={styles.tableCell}>Category</div>
-            <div className={styles.tableCell}>CCU Event</div>
+            <div className={styles.tableCell}>CCU</div>
           </div>
 
           <div className={styles.tableBody}>

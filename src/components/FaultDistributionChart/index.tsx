@@ -49,7 +49,7 @@ const FaultDistributionChart: React.FC = () => {
   const option: EChartsOption = {
     tooltip: {
       trigger: 'item',
-      formatter: (params: any) => { // Tooltip formatter for complex strings can remain flexible
+      formatter: (params: any) => { 
         const unit = faultChartMode === 'count' ? 'events' : 'hours';
         return `${params.seriesName}<br/>${params.name}: ${params.value} ${unit} (${params.percent}%)`;
       },
@@ -121,7 +121,7 @@ const FaultDistributionChart: React.FC = () => {
   
   const handleChartClick = (params: ECElementEvent) => {
     if (params.componentType === 'series' && params.name) {
-      const clickedCategory = params.name as string;
+      const clickedCategory = params.name;
       
       const currentFilters = useAppStore.getState().logFilters;
       if (currentFilters.category && currentFilters.category.length > 0) {

@@ -31,46 +31,48 @@ interface ParsedFileResult {
   lightweightData?: LightweightLogEvent[];
 }
 
+/**
+ * Creates a simple hash from a string. Not cryptographically secure, but good enough for unique IDs.
+ * @param str The string to hash.
+ * @returns A hash code as a string.
+ */
+const simpleHashCode = (str: string): string => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return hash.toString(16); // Convert to hexadecimal
+};
+
+
 const createLocalDate = (dateString: string): Date | null => {
     if (!dateString || typeof dateString !== 'string') return null;
-    // Parse as local time without timezone conversion
     const cleanDateString = dateString.trim();
     
-    // Try different date formats
     let date: Date;
     
-    // Format: "YYYY-MM-DD HH:mm:ss"
     if (cleanDateString.includes(' ')) {
         const [datePart, timePart] = cleanDateString.split(' ');
         const [year, month, day] = datePart.split('-').map(Number);
         const [hour, minute, second] = timePart.split(':').map(Number);
         
-        // Create date as local time
         date = new Date(year, month - 1, day, hour || 0, minute || 0, second || 0);
     } else {
-        // Fallback to direct parsing
         date = new Date(cleanDateString);
     }
     
     return isNaN(date.getTime()) ? null : date;
 }
 
-// Special function for log events to handle timezone correction
 const createLocalDateForLogs = (dateString: string): Date | null => {
     const baseDate = createLocalDate(dateString);
     if (!baseDate) return null;
     
-    // If this is a log event and it's showing 3 hours behind, 
-    // it might be because the CSV contains UTC times but we need local time
-    // For Turkey (UTC+3), we need to add 3 hours
     const timezoneOffsetMinutes = baseDate.getTimezoneOffset();
     
-    // getTimezoneOffset() returns positive values for timezones west of UTC
-    // For Turkey (UTC+3), it returns -180 (negative because east of UTC)
-    // If the CSV times are in UTC but should be displayed as local time, 
-    // we need to subtract the timezone offset
     if (timezoneOffsetMinutes === -180) { // Turkey timezone
-        // Add 3 hours (180 minutes) to convert from UTC to local time
         return new Date(baseDate.getTime() + (180 * 60 * 1000));
     }
     
@@ -111,11 +113,17 @@ const parseFile = (file: File): Promise<ParsedFileResult> => {
           const logData: TurbineEvent[] = [];
           const lightweightLogData: LightweightLogEvent[] = [];
 
-          results.data.forEach((row, index) => {
+          results.data.forEach((row) => {
             const timestamp = createLocalDateForLogs(row['Timestamp']);
             if (timestamp) {
+              // --- GÜNCELLENMİŞ ID OLUŞTURMA MANTIĞI ---
+              // Sadece temel ve değişmez sütunları birleştir.
+              const keyContent = `${row['Timestamp']}-${row['Name']}-${row['Status']}`;
+              // Bu anahtar içerikten bir hash oluştur.
+              const uniqueId = simpleHashCode(keyContent);
+              // --- BİTTİ ---
+
               const powerValue = row['Power (kW)'] ? String(row['Power (kW)']).replace(/,/g, '') : undefined;
-              const uniqueId = `${timestamp.getTime()}-${row['Name']}-${index}`;
 
               logData.push({
                 id: uniqueId,

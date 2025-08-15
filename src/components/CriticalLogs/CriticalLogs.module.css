@@ -117,19 +117,23 @@
   align-items: center;
 }
 
-.tableCell.commentCell {
-  flex: 0 0 50px;
+.selectCell {
+  flex: 0 0 90px;
   justify-content: center;
+  gap: 8px;
   padding: 12px 0;
 }
-.tableCell:nth-child(2) { width: 11%; }
-.tableCell:nth-child(3) { width: 8%; }
-.tableCell:nth-child(4) { width: 8%; }
-.tableCell:nth-child(5) { width: 12%; }
-.tableCell:nth-child(6) { width: 12%; }
-.tableCell:nth-child(7) { width: 25%; }
-.tableCell:nth-child(8) { width: 10%; }
-.tableCell:nth-child(9) { width: 10%; }
+
+/* --- GÜNCELLENMİŞ SÜTUN GENİŞLİKLERİ --- */
+.tableCell:nth-child(2) { width: 11%; } /* Date */
+.tableCell:nth-child(3) { width: 9%; }  /* Time */
+.tableCell:nth-child(4) { width: 7%; }  /* Status */
+.tableCell:nth-child(5) { width: 12%; } /* Name - genişletildi */
+.tableCell:nth-child(6) { width: 11%; } /* Event Type */
+.tableCell:nth-child(7) { width: 25%; } /* Description - daraltıldı */
+.tableCell:nth-child(8) { width: 9%; }  /* Category - daraltıldı */
+.tableCell:nth-child(9) { width: 16%; } /* CCU Event - genişletildi */
+
 
 .noLogs {
   text-align: center;
@@ -137,7 +141,7 @@
   padding: 40px;
 }
 
-.commentButton {
+.commentButton, .targetButton {
   background: none;
   border: none;
   cursor: pointer;
@@ -161,4 +165,17 @@
 
 .commentButton.selected svg {
   fill: var(--color-brand);
+}
+
+.targetButton:hover {
+  background-color: rgba(0,0,0,0.1);
+  color: #f59e0b;
+}
+
+.targetButton.selected {
+  color: #f59e0b;
+}
+
+.targetButton.selected svg {
+  fill: #f59e0b;
 }

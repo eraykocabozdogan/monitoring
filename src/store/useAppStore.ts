@@ -34,7 +34,8 @@ interface AppState {
   chartPins: ChartPin[];
   chartIntervals: ChartInterval[];
   pendingInterval: { startTimestamp: Date } | null;
-  commentLogSelections: TurbineEvent[]; // EKLENDİ
+  commentLogSelections: TurbineEvent[];
+  targetLogIds: Set<string>; // YENİ: Hedef log ID'lerini tutmak için.
   addStagedFile: (file: File) => void;
   removeStagedFile: (fileName: string) => void;
   processStagedFiles: () => Promise<{ success: boolean; message: string }>;
@@ -62,7 +63,8 @@ interface AppState {
   setPendingInterval: (interval: { startTimestamp: Date } | null) => void;
   clearChartSelections: () => void;
   loadCommentSelectionsToChart: (commentId: number) => void;
-  toggleLogCommentSelection: (log: TurbineEvent) => void; // EKLENDİ
+  toggleLogCommentSelection: (log: TurbineEvent) => void;
+  toggleTargetLog: (logId: string) => void; // YENİ: Hedef log seçme/kaldırma eylemi.
 }
 
 const withMinimumLoading = async (action: () => Promise<unknown>) => {
@@ -102,6 +104,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   chartIntervals: [],
   pendingInterval: null,
   commentLogSelections: [],
+  targetLogIds: new Set<string>(), // YENİ: Başlangıç değeri.
 
   addStagedFile: (file) => {
     if (!get().stagedFiles.some(f => f.name === file.name)) {
@@ -159,6 +162,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           chartIntervals: [],
           pendingInterval: null,
           commentLogSelections: [],
+          targetLogIds: new Set<string>(), // GÜNCELLENDİ: Yeni dosyalar işlendiğinde hedef listesini sıfırla.
         });
         result = { success: true, message: "Files processed successfully." };
       } catch (error) {
@@ -233,5 +237,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       ? state.commentLogSelections.filter(selectedLog => selectedLog.id !== log.id)
       : [...state.commentLogSelections, log];
     return { commentLogSelections: newSelections };
+  }),
+
+  toggleTargetLog: (logId: string) => set(state => {
+    const newTargetLogIds = new Set(state.targetLogIds);
+    if (newTargetLogIds.has(logId)) {
+      newTargetLogIds.delete(logId);
+    } else {
+      newTargetLogIds.add(logId);
+    }
+    return { targetLogIds: newTargetLogIds };
   }),
 }));
